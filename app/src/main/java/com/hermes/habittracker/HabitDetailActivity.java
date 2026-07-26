@@ -42,6 +42,7 @@ public class HabitDetailActivity extends AppCompatActivity {
     private Habit habit;
     private Calendar viewMonth = Calendar.getInstance();
     private LinearLayout calendarContainer;
+    private TextView monthLabel;   // field ref so rebuildCalendar() never needs findViewById
 
     // === Color palette (ARGB hex) ===
     // Softer, more distinct colors for better visibility on dark background
@@ -179,6 +180,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         LinearLayout.LayoutParams mlLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         mlLp.gravity = Gravity.CENTER;
         monthLabel.setLayoutParams(mlLp);
+        this.monthLabel = monthLabel;
 
         TextView nextBtn = new TextView(this);
         nextBtn.setText("  \u203A  ");
@@ -306,7 +308,10 @@ public class HabitDetailActivity extends AppCompatActivity {
 
     private void rebuildCalendar() {
         calendarContainer.removeAllViews();
-        TextView monthLabel = findViewById(android.R.id.text1);
+        // Use the field reference set in buildUI(); fall back to findViewById only if needed.
+        TextView monthLabel = this.monthLabel;
+        if (monthLabel == null) monthLabel = findViewById(android.R.id.text1);
+        if (monthLabel == null) return; // safety: nothing to label yet
         SimpleDateFormat monthFmt = new SimpleDateFormat("MMMM yyyy", Locale.US);
         monthLabel.setText(monthFmt.format(viewMonth.getTime()));
 
