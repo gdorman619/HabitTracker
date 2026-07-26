@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
@@ -75,7 +76,8 @@ public class MainActivity extends AppCompatActivity {
             public void onToggle(int pos) {
                 habits.get(pos).toggleToday();
                 storage.updateHabit(habits.get(pos));
-                adapter.notifyItemChanged(pos);
+                sortHabits();
+                adapter.update(habits);
                 updateCount();
                 StreaksWidgetProvider.updateAllWidgets(MainActivity.this);
                 showUndoToast(pos);
@@ -106,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         habits = storage.loadHabits();
+        sortHabits();
         adapter.update(habits);
         updateCount();
         updateEmptyState();
@@ -171,6 +174,7 @@ public class MainActivity extends AppCompatActivity {
                             .setPositiveButton("Delete", (d2, w) -> {
                                 storage.deleteHabit(habits.get(pos).id);
                                 habits.remove(pos);
+                                sortHabits();
                                 adapter.update(habits);
                                 updateCount();
                                 updateEmptyState();
@@ -233,7 +237,8 @@ public class MainActivity extends AppCompatActivity {
                 Habit h = new Habit(storage.getNextId(), name, emojis[selectedEmojiIdx]);
                 storage.addHabit(h);
                 habits.add(h);
-                adapter.notifyItemInserted(habits.size() - 1);
+                sortHabits();
+                adapter.update(habits);
                 updateCount();
                 updateEmptyState();
                 StreaksWidgetProvider.updateAllWidgets(this);
@@ -248,5 +253,17 @@ public class MainActivity extends AppCompatActivity {
         int done = 0;
         for (Habit h : habits) if (h.isDoneToday()) done++;
         count.setText(done + "/" + habits.size() + " today");
+    }
+
+    private void sortHabits() {
+        List<Habit> notDone = new ArrayList<>();
+        List<Habit> done = new ArrayList<>();
+        for (Habit h : habits) {
+            if (h.isDoneToday()) done.add(h);
+            else notDone.add(h);
+        }
+        habits.clear();
+        habits.addAll(notDone);
+        habits.addAll(done);
     }
 }
