@@ -167,6 +167,14 @@ public class HabitStorage {
             // No adjacent missed day to protect — nothing to freeze.
             return false;
         }
+        // A freeze can only protect a day strictly AFTER the habit was created —
+        // there's no prior streak to preserve on the creation day itself, and
+        // freezing a day before creation is impossible. Result: a habit created
+        // today offers no freeze; a habit created yesterday can still freeze
+        // yesterday or today as normal.
+        if (h.createdAt != null && target.compareTo(h.createdAt) <= 0) {
+            return false;
+        }
         h.freezesUsed = 1;
         h.frozenDates.add(target);
         updateHabit(h);

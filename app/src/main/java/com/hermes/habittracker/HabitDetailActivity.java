@@ -366,8 +366,13 @@ public class HabitDetailActivity extends AppCompatActivity {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         String today = sdf.format(new java.util.Date());
         String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000L));
-        return (!h.completedDates.contains(today) && !h.frozenDates.contains(today))
-            || (!h.completedDates.contains(yesterday) && !h.frozenDates.contains(yesterday));
+        // A candidate day only counts if it's strictly after the habit was
+        // created — you can't freeze the creation day itself or any day before it.
+        boolean todayMiss = !h.completedDates.contains(today) && !h.frozenDates.contains(today)
+                && (h.createdAt == null || today.compareTo(h.createdAt) > 0);
+        boolean yestMiss = !h.completedDates.contains(yesterday) && !h.frozenDates.contains(yesterday)
+                && (h.createdAt == null || yesterday.compareTo(h.createdAt) > 0);
+        return todayMiss || yestMiss;
     }
 
     private void rebuildCalendar() {
@@ -514,11 +519,14 @@ public class HabitDetailActivity extends AppCompatActivity {
         text.setTextColor(C_MUTED);
         text.setTextSize(10);
         text.setSingleLine(true);              // keep each label on one line
+        text.setIncludeFontPadding(false);     // removes extra bottom padding that clips glyphs
         text.setEllipsize(android.text.TextUtils.TruncateAt.END);
         // Equal-width quarter columns: guarantees all four words fit on one
         // row without clipping (the longest word "Frozen" gets its own column).
         LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         tLp.setMarginEnd(dp(6));
+        tLp.topMargin = dp(2);
+        tLp.bottomMargin = dp(2);               // breathing room so descenders aren't cut
         text.setLayoutParams(tLp);
         legend.addView(text);
     }
