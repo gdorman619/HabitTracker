@@ -98,6 +98,33 @@ public class MainActivity extends AppCompatActivity {
 
         FloatingActionButton addBtn = findViewById(R.id.addButton);
         addBtn.setOnClickListener(v -> showAddDialog());
+        addBtn.setOnLongClickListener(v -> {
+            new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
+                .setTitle("Test Data")
+                .setMessage("Load sample habits with streaks, misses, and freezes?\n\nThis will replace your current habits.")
+                .setPositiveButton("Load Test Data", (d, w) -> {
+                    storage.injectTestData();
+                    habits = storage.loadHabits();
+                    sortHabits();
+                    adapter.update(habits);
+                    updateCount();
+                    updateEmptyState();
+                    StreaksWidgetProvider.updateAllWidgets(this);
+                    Toast.makeText(this, "Test data loaded!", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Clear All", (d, w) -> {
+                    storage.clearAllHabits();
+                    habits.clear();
+                    adapter.update(habits);
+                    updateCount();
+                    updateEmptyState();
+                    StreaksWidgetProvider.updateAllWidgets(this);
+                    Toast.makeText(this, "All habits cleared", Toast.LENGTH_SHORT).show();
+                })
+                .setNeutralButton("Cancel", null)
+                .show();
+            return true;
+        });
 
         updateCount();
         showDailyQuote();

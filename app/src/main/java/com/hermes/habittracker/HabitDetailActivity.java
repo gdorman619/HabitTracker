@@ -88,14 +88,25 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         int remaining = storage.getFreezesRemaining();
         int max = storage.getMaxFreezes();
+        boolean canFreeze = storage.canFreezeHabit(habit);
+        boolean alreadyFrozen = habit.freezesUsed > 0;
+
         TextView freezeText = new TextView(this);
-        freezeText.setText("\u2744\uFE0F Streak Freezes: " + remaining + "/" + max + " remaining this month");
+        if (alreadyFrozen) {
+            freezeText.setText("\u2744\uFE0F Freeze active on this habit");
+        } else {
+            freezeText.setText("\u2744\uFE0F Streak Freezes: " + remaining + "/" + max + " remaining this month");
+        }
         freezeText.setTextSize(14);
         freezeText.setTextColor(0xff9aa7b4);
         freezeSection.addView(freezeText);
 
         TextView freezeDesc = new TextView(this);
-        freezeDesc.setText("Freezes protect your streak when you miss a day.");
+        if (alreadyFrozen) {
+            freezeDesc.setText("Your streak is protected from 1 missed day.");
+        } else {
+            freezeDesc.setText("Freezes protect your streak when you miss a day.");
+        }
         freezeDesc.setTextSize(12);
         freezeDesc.setTextColor(0x889aa7b4);
         LinearLayout.LayoutParams fdLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -105,25 +116,34 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         // Freeze button
         TextView freezeBtn = new TextView(this);
-        freezeBtn.setText(remaining > 0 ? "  Use Freeze  " : "  No Freezes Left  ");
+        if (alreadyFrozen) {
+            freezeBtn.setText("  Already Frozen  ");
+            freezeBtn.setTextColor(0xff9aa7b4);
+            freezeBtn.setBackgroundColor(0xff2a3441);
+        } else if (canFreeze) {
+            freezeBtn.setText("  Use Freeze  ");
+            freezeBtn.setTextColor(0xff0f1419);
+            freezeBtn.setBackgroundColor(0xff4cc2ff);
+        } else {
+            freezeBtn.setText(remaining > 0 ? "  Already Used Freeze  " : "  No Freezes Left  ");
+            freezeBtn.setTextColor(0xff9aa7b4);
+            freezeBtn.setBackgroundColor(0xff2a3441);
+        }
         freezeBtn.setTextSize(14);
-        freezeBtn.setTextColor(remaining > 0 ? 0xff0f1419 : 0xff9aa7b4);
-        freezeBtn.setBackgroundColor(remaining > 0 ? 0xff4cc2ff : 0xff2a3441);
         freezeBtn.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams fbLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         fbLp.topMargin = padSm;
         freezeBtn.setLayoutParams(fbLp);
-        freezeBtn.setOnClickListener(v -> {
-            if (storage.canUseFreeze()) {
-                storage.useFreeze();
-                habit.freezesUsed++;
-                storage.updateHabit(habit);
-                Toast.makeText(this, "\u2744\uFE0F Freeze used! Your streak is protected.", Toast.LENGTH_SHORT).show();
-                recreate();
-            } else {
-                Toast.makeText(this, "No freezes remaining this month.", Toast.LENGTH_SHORT).show();
-            }
-        });
+        if (canFreeze) {
+            freezeBtn.setOnClickListener(v -> {
+                if (storage.freezeHabit(habit)) {
+                    Toast.makeText(this, "\u2744\uFE0F Freeze applied! Your streak is protected.", Toast.LENGTH_SHORT).show();
+                    recreate();
+                } else {
+                    Toast.makeText(this, "Could not apply freeze.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
         freezeSection.addView(freezeBtn);
         root.addView(freezeSection);
 

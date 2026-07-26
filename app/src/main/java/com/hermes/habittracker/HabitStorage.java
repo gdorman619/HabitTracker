@@ -11,6 +11,7 @@ public class HabitStorage {
     private static final String KEY_HABITS = "habits_json";
     private static final String KEY_UNLOCKED = "is_unlocked";
     private static final String KEY_FREEZE_MONTH = "freeze_month";
+    private static final String KEY_FREEZES_USED = "freezes_used_global";
     private static final int FREE_LIMIT = 5;
     private static final int FREE_FREEZES_PER_MONTH = 1;
     private static final int PAID_FREEZES_PER_MONTH = 3;
@@ -82,6 +83,10 @@ public class HabitStorage {
         return (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
     }
 
+    // === Freeze logic ===
+    // Global monthly limit: how many total freezes you can use across ALL habits per month
+    // Per-habit: each habit's freezesUsed counts how many missed days it tolerates in its streak
+
     public int getMaxFreezes() {
         return isUnlocked() ? PAID_FREEZES_PER_MONTH : FREE_FREEZES_PER_MONTH;
     }
@@ -95,10 +100,10 @@ public class HabitStorage {
         String month = getCurrentMonth();
         String stored = prefs.getString(KEY_FREEZE_MONTH, "");
         if (!month.equals(stored)) {
-            prefs.edit().putString(KEY_FREEZE_MONTH, month).putInt("freezes_used", 0).apply();
+            prefs.edit().putString(KEY_FREEZE_MONTH, month).putInt(KEY_FREEZES_USED, 0).apply();
             return 0;
         }
-        return prefs.getInt("freezes_used", 0);
+        return prefs.getInt(KEY_FREEZES_USED, 0);
     }
 
     public boolean canUseFreeze() {
@@ -106,10 +111,78 @@ public class HabitStorage {
     }
 
     public void useFreeze() {
-        prefs.edit().putInt("freezes_used", getFreezesUsedThisMonth() + 1).apply();
+        // Increments global monthly counter
+        prefs.edit().putInt(KEY_FREEZES_USED, getFreezesUsedThisMonth() + 1).apply();
     }
 
     public int getFreezesRemaining() {
         return getMaxFreezes() - getFreezesUsedThisMonth();
+    }
+
+    // Check if a specific habit can be frozen (hasn't been frozen yet, and global limit not reached)
+    public boolean canFreezeHabit(Habit h) {
+        return h.freezesUsed == 0 && canUseFreeze();
+    }
+
+    // Apply freeze to a specific habit
+    public boolean freezeHabit(Habit h) {
+        if (!canFreezeHabit(h)) return false;
+        h.freezesUsed = 1;
+        updateHabit(h);
+        useFreeze();
+        return true;
+    }
+
+    // === Test data injection ===
+    public void injectTestData() {
+        List<Habit> habits = new ArrayList<>();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        long now = System.currentTimeMillis();
+        long day = 86400000L;
+
+        // Habit 1: "Drink Water" - 10 day unbroken streak (done every day)
+        Habit h1 = new Habit(1001, "Drink Water", "\uD83D\uDCA7");
+        for (int i = 0; i < 10; i++) {
+            h1.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
+        }
+        habits.add(h1);
+
+        // Habit 2: "Exercise" - 5 day streak but missed 2 days ago (would be 7 without the miss)
+        Habit h2 = new Habit(1002, "Exercise", "\uD83D\uDCAA");
+        for (int i = 0; i < 5; i++) {
+            h2.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
+        }
+        // Missed day 6 and 7 ago (gap in the streak)
+        // Streak restarts from 5 days ago
+        habits.add(h2);
+
+        // Habit 3: "Read" - 7 day streak, missed 3 days ago, has a freeze applied
+        Habit h3 = new Habit(1003, "Read 20 Pages", "\uD83D\uDCDA");
+        for (int i = 0; i < 7; i++) {
+            if (i == 3) continue; // Skip 3 days ago (missed)
+            h3.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
+        }
+        h3.freezesUsed = 1; // Freeze applied to cover the miss
+        habits.add(h3);
+
+        // Habit 4: "Meditate" - just started, 2 day streak
+        Habit h4 = new Habit(1004, "Meditate", "\uD83D\uDD25");
+        for (int i = 0; i < 2; i++) {
+            h4.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
+        }
+        habits.add(h4);
+
+        // Habit 5: "No Sugar" - 3 day streak but missed yesterday (streak broken)
+        Habit h5 = new Habit(1005, "No Sugar", "\uD83C\uDF6C");
+        for (int i = 1; i < 4; i++) { // Started 4 days ago, skipped yesterday (i=0)
+            h5.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
+        }
+        habits.add(h5);
+
+        saveHabits(habits);
+    }
+
+    public void clearAllHabits() {
+        prefs.edit().remove(KEY_HABITS).apply();
     }
 }
