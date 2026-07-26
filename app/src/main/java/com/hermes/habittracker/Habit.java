@@ -82,9 +82,9 @@ public class Habit {
             JSONObject obj = new JSONObject(json);
             Habit h = new Habit(obj.getInt("id"), obj.getString("name"), obj.optString("emoji", "\u2705"));
             h.createdAt = obj.optString("createdAt", null);
+            JSONArray dates = obj.getJSONArray("dates");
             // If no createdAt stored, use the earliest completed date as fallback
             if (h.createdAt == null || h.createdAt.isEmpty()) {
-                JSONArray dates = obj.getJSONArray("dates");
                 for (int i = 0; i < dates.length(); i++) {
                     String d = dates.getString(i);
                     if (h.createdAt == null || d.compareTo(h.createdAt) < 0) {
