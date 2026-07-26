@@ -1,5 +1,18 @@
 package com.hermes.habittracker;
 
+/*
+ * HabitStorage.java — Persistence layer for habits.
+ *
+ * Uses SharedPreferences + JSON serialization (no SQLite/Room). All data stays
+ * on-device, 100% offline, no account needed.
+ *
+ * Responsibilities:
+ *   - CRUD: add, delete, update, load habits
+ *   - Free tier limit: max 5 habits for free users, unlimited for paid
+ *   - Streak freeze management: global monthly limit, per-habit freeze application
+ *   - Test data injection: generates 5 sample habits with varied streaks
+ */
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import org.json.JSONArray;
@@ -10,13 +23,13 @@ import java.util.Locale;
 
 public class HabitStorage {
     private static final String PREFS = "habit_storage";
-    private static final String KEY_HABITS = "habits_json";
-    private static final String KEY_UNLOCKED = "is_unlocked";
-    private static final String KEY_FREEZE_MONTH = "freeze_month";
-    private static final String KEY_FREEZES_USED = "freezes_used_global";
-    private static final int FREE_LIMIT = 5;
-    private static final int FREE_FREEZES_PER_MONTH = 1;
-    private static final int PAID_FREEZES_PER_MONTH = 3;
+    private static final String KEY_HABITS = "habits_json";        // JSON array of all habits
+    private static final String KEY_UNLOCKED = "is_unlocked";     // true = paid $2.99
+    private static final String KEY_FREEZE_MONTH = "freeze_month"; // "yyyy-MM" for monthly reset
+    private static final String KEY_FREEZES_USED = "freezes_used_global"; // global monthly counter
+    private static final int FREE_LIMIT = 5;                     // max habits for free users
+    private static final int FREE_FREEZES_PER_MONTH = 1;        // free users: 1 freeze/month
+    private static final int PAID_FREEZES_PER_MONTH = 3;        // paid users: 3 freezes/month
 
     private final SharedPreferences prefs;
 
@@ -24,6 +37,9 @@ public class HabitStorage {
         prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    // === CRUD operations ===
+
+    /** Load all habits from storage, parsed from JSON. Returns empty list if none. */
     public List<Habit> loadHabits() {
         List<Habit> habits = new ArrayList<>();
         String json = prefs.getString(KEY_HABITS, "");
@@ -86,9 +102,10 @@ public class HabitStorage {
     }
 
     // === Freeze logic ===
-    // Global monthly limit: how many total freezes you can use across ALL habits per month
-    // Per-habit: each habit's freezesUsed counts how many missed days it tolerates in its streak
+    // Global monthly limit: total freezes across ALL habits per month
+    // Per-habit: each habit can only be frozen once (freezesUsed = 0 or 1)
 
+    /** Maximum freezes available per month based on free/paid status. */
     public int getMaxFreezes() {
         return isUnlocked() ? PAID_FREEZES_PER_MONTH : FREE_FREEZES_PER_MONTH;
     }
@@ -121,12 +138,18 @@ public class HabitStorage {
         return getMaxFreezes() - getFreezesUsedThisMonth();
     }
 
-    // Check if a specific habit can be frozen (hasn't been frozen yet, and global limit not reached)
+    /** Check if a specific habit can be frozen: not already frozen AND global limit not reached. */
     public boolean canFreezeHabit(Habit h) {
         return h.freezesUsed == 0 && canUseFreeze();
     }
 
-    // Apply freeze to a specific habit — finds the first missed day after creation and marks it frozen
+    /**
+     * Apply a freeze to a specific habit.
+     * Finds the most recent missed day (between createdAt and today) and marks it frozen.
+     * Increments the global monthly freeze counter.
+     *
+     * @return true if freeze was applied, false if not allowed
+     */
     public boolean freezeHabit(Habit h) {
         if (!canFreezeHabit(h)) return false;
         h.freezesUsed = 1;
@@ -148,6 +171,10 @@ public class HabitStorage {
     }
 
     // === Test data injection ===
+    // Generates 5 sample habits with varied streak patterns for testing/preview.
+    // Replaces all existing habits. Triggered by long-pressing the + button.
+
+    /** Inject 5 test habits with different streaks, misses, and a freeze. */
     public void injectTestData() {
         List<Habit> habits = new ArrayList<>();
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);

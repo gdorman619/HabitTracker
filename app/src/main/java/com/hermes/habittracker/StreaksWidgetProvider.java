@@ -1,5 +1,24 @@
 package com.hermes.habittracker;
 
+/*
+ * StreaksWidgetProvider.java — Home screen widget for the habit tracker.
+ *
+ * Shows a compact view of today's habits directly on the home screen:
+ *   - Header: "Streaks" + "X/Y done" counter
+ *   - Up to 4 habit rows (sorted: not-done first, then done)
+ *   - Each row: emoji, name, streak count, ✅/⬛ checkmark
+ *
+ * Interactions:
+ *   - Tap a habit row → toggles done/not-done (via ACTION_TOGGLE broadcast)
+ *   - Tap header/empty area → opens the app
+ *
+ * The widget uses RemoteViews (required for app widgets). It does NOT use
+ * ListView/RemoteViewsService (which caused rendering issues on Samsung devices).
+ * Instead, rows are added as static child views via addView().
+ *
+ * Widget auto-refreshes when habits change (called from MainActivity).
+ */
+
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;

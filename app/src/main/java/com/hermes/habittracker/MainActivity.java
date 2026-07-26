@@ -1,5 +1,24 @@
 package com.hermes.habittracker;
 
+/*
+ * MainActivity.java — Main screen of the Streaks app.
+ *
+ * Shows the list of today's habits, sorted: not-done first (top), then done (bottom).
+ * When you check off a habit, it slides to the bottom of the list.
+ *
+ * Features:
+ *   - Daily motivation quote at the top (rotates daily, 30 quotes)
+ *   - Habit list with emoji, name, streak, checkbox, freeze badge
+ *   - Tap habit → opens HabitDetailActivity (calendar/history/edit)
+ *   - Long-press habit → menu: View History / Edit / Delete
+ *   - Tap + button → add new habit dialog (name + emoji picker)
+ *   - Long-press + → test data menu (load/clear)
+ *   - Undo snackbar after toggling (5-second undo)
+ *   - Empty state with welcome message when no habits
+ *   - Free tier: max 5 habits, then unlock prompt ($2.99 one-time)
+ *   - Widget auto-refreshes on any change
+ */
+
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;

@@ -1,5 +1,17 @@
 package com.hermes.habittracker;
 
+/*
+ * HabitAdapter.java — RecyclerView adapter for the main habit list.
+ *
+ * Each row shows: emoji, name, streak count (🔥 N day streak), freeze badge (❄️),
+ * and a checkbox to toggle today's completion.
+ *
+ * Interactions:
+ *   - Tap checkbox → onToggle() (marks done/not-done for today)
+ *   - Tap row      → onClick() (opens detail screen)
+ *   - Long-press   → onLongClick() (shows edit/delete/history menu)
+ */
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,9 +26,9 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
     private final OnHabitToggle listener;
 
     public interface OnHabitToggle {
-        void onToggle(int position);
-        void onLongClick(int position);
-        void onClick(int position);
+        void onToggle(int position);    // checkbox tapped
+        void onLongClick(int position); // long-press (show menu)
+        void onClick(int position);     // tap row (open detail)
     }
 
     public HabitAdapter(List<Habit> habits, OnHabitToggle listener) {

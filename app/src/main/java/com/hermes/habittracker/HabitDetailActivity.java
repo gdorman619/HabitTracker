@@ -1,5 +1,26 @@
 package com.hermes.habittracker;
 
+/*
+ * HabitDetailActivity.java — Detail/history screen for a single habit.
+ *
+ * Shows:
+ *   - Header: emoji + habit name
+ *   - Stats row: current streak (🔥) + total completions
+ *   - Started badge: pill-style date when the habit was created
+ *   - Freeze section: remaining freezes, "Use Freeze" button
+ *   - Month calendar: navigable with ‹ › arrows (browse any month)
+ *     - Green cells = completed
+ *     - Blue cell = today
+ *     - Amber cells = missed (after habit was created)
+ *     - Ice-blue ❄️ = frozen day
+ *     - Dark grey = before habit existed (N/A)
+ *   - Legend: color key
+ *   - Edit button: change name + emoji
+ *   - Delete button: remove habit (with confirmation)
+ *
+ * The entire UI is built programmatically (no XML layout) for flexibility.
+ */
+
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -22,24 +43,25 @@ public class HabitDetailActivity extends AppCompatActivity {
     private Calendar viewMonth = Calendar.getInstance();
     private LinearLayout calendarContainer;
 
-    // Colors
-    private static final int C_BG = 0xff0f1419;
-    private static final int C_CARD = 0xff1a212b;
-    private static final int C_ACCENT = 0xff4cc2ff;
-    private static final int C_TEXT = 0xffe6edf3;
-    private static final int C_MUTED = 0xff9aa7b4;
-    private static final int C_DONE_BG = 0xff2ea043;
-    private static final int C_DONE_FG = 0xfff0f6fc;
-    private static final int C_TODAY_BG = 0xff1a4a6e;
-    private static final int C_TODAY_FG = 0xff4cc2ff;
-    private static final int C_MISS_BG = 0xff3d2417;
-    private static final int C_MISS_FG = 0xffdb6d28;
-    private static final int C_FROZEN_BG = 0xff1a3850;
-    private static final int C_FROZEN_FG = 0xff7dd3fc;
-    private static final int C_NA_BG = 0xff11181f;
-    private static final int C_NA_FG = 0x449aa7b4;
-    private static final int C_BORDER = 0xff2a3441;
-    private static final int C_RED = 0xfff85149;
+    // === Color palette (ARGB hex) ===
+    // Softer, more distinct colors for better visibility on dark background
+    private static final int C_BG = 0xff0f1419;        // app background (navy)
+    private static final int C_CARD = 0xff1a212b;      // card/section background
+    private static final int C_ACCENT = 0xff4cc2ff;     // primary accent (cyan)
+    private static final int C_TEXT = 0xffe6edf3;       // primary text
+    private static final int C_MUTED = 0xff9aa7b4;      // secondary text
+    private static final int C_DONE_BG = 0xff2ea043;    // completed day background (forest green)
+    private static final int C_DONE_FG = 0xfff0f6fc;    // completed day text (near-white)
+    private static final int C_TODAY_BG = 0xff1a4a6e;   // today background (deep blue)
+    private static final int C_TODAY_FG = 0xff4cc2ff;   // today text (cyan)
+    private static final int C_MISS_BG = 0xff3d2417;    // missed day background (warm brown)
+    private static final int C_MISS_FG = 0xffdb6d28;    // missed day text (amber)
+    private static final int C_FROZEN_BG = 0xff1a3850;  // frozen day background (ice blue)
+    private static final int C_FROZEN_FG = 0xff7dd3fc;  // frozen day text (light cyan)
+    private static final int C_NA_BG = 0xff11181f;      // before-creation background (very dark)
+    private static final int C_NA_FG = 0x449aa7b4;      // before-creation text (faded)
+    private static final int C_BORDER = 0xff2a3441;     // border/disabled background
+    private static final int C_RED = 0xfff85149;        // delete/danger (red)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
