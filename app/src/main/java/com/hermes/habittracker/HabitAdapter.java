@@ -41,6 +41,14 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         Habit h = habits.get(position);
         holder.emoji.setText(h.emoji);
         holder.name.setText(h.name);
+
+        // Show freeze badge if habit has a freeze applied
+        if (h.freezesUsed > 0) {
+            holder.freezeBadge.setVisibility(View.VISIBLE);
+        } else {
+            holder.freezeBadge.setVisibility(View.GONE);
+        }
+
         int streak = h.getStreak();
         if (streak > 0) {
             holder.streak.setText("\uD83D\uDD25 " + streak + " day streak");
@@ -68,13 +76,14 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView emoji, name, streak;
+        TextView emoji, name, streak, freezeBadge;
         CheckBox check;
         VH(View v) {
             super(v);
             emoji = v.findViewById(R.id.habitEmoji);
             name = v.findViewById(R.id.habitName);
             streak = v.findViewById(R.id.habitStreak);
+            freezeBadge = v.findViewById(R.id.freezeBadge);
             check = v.findViewById(R.id.habitCheck);
         }
     }
