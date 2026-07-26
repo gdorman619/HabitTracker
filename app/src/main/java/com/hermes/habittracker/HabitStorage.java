@@ -142,6 +142,7 @@ public class HabitStorage {
 
         // Habit 1: "Drink Water" - 10 day unbroken streak (done every day)
         Habit h1 = new Habit(1001, "Drink Water", "\uD83D\uDCA7");
+        h1.createdAt = sdf.format(new java.util.Date(now - 11 * day));
         for (int i = 0; i < 10; i++) {
             h1.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
@@ -149,24 +150,25 @@ public class HabitStorage {
 
         // Habit 2: "Exercise" - 5 day streak but missed 2 days ago (would be 7 without the miss)
         Habit h2 = new Habit(1002, "Exercise", "\uD83D\uDCAA");
+        h2.createdAt = sdf.format(new java.util.Date(now - 8 * day));
         for (int i = 0; i < 5; i++) {
             h2.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
-        // Missed day 6 and 7 ago (gap in the streak)
-        // Streak restarts from 5 days ago
         habits.add(h2);
 
         // Habit 3: "Read" - 7 day streak, missed 3 days ago, has a freeze applied
         Habit h3 = new Habit(1003, "Read 20 Pages", "\uD83D\uDCDA");
+        h3.createdAt = sdf.format(new java.util.Date(now - 10 * day));
         for (int i = 0; i < 7; i++) {
-            if (i == 3) continue; // Skip 3 days ago (missed)
+            if (i == 3) continue;
             h3.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
-        h3.freezesUsed = 1; // Freeze applied to cover the miss
+        h3.freezesUsed = 1;
         habits.add(h3);
 
         // Habit 4: "Meditate" - just started, 2 day streak
         Habit h4 = new Habit(1004, "Meditate", "\uD83D\uDD25");
+        h4.createdAt = sdf.format(new java.util.Date(now - 2 * day));
         for (int i = 0; i < 2; i++) {
             h4.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
@@ -174,7 +176,8 @@ public class HabitStorage {
 
         // Habit 5: "No Sugar" - 3 day streak but missed yesterday (streak broken)
         Habit h5 = new Habit(1005, "No Sugar", "\uD83C\uDF6C");
-        for (int i = 1; i < 4; i++) { // Started 4 days ago, skipped yesterday (i=0)
+        h5.createdAt = sdf.format(new java.util.Date(now - 5 * day));
+        for (int i = 1; i < 4; i++) {
             h5.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
         habits.add(h5);

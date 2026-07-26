@@ -2,6 +2,7 @@ package com.hermes.habittracker;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,6 +10,7 @@ public class Habit {
     public int id;
     public String name;
     public String emoji;
+    public String createdAt;
     public List<String> completedDates = new ArrayList<>();
     public int freezesUsed = 0;
 
@@ -16,6 +18,7 @@ public class Habit {
         this.id = id;
         this.name = name;
         this.emoji = emoji;
+        this.createdAt = new SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
     }
 
     public int getStreak() {
@@ -65,6 +68,7 @@ public class Habit {
             obj.put("id", id);
             obj.put("name", name);
             obj.put("emoji", emoji);
+            obj.put("createdAt", createdAt);
             JSONArray dates = new JSONArray();
             for (String d : completedDates) dates.put(d);
             obj.put("dates", dates);
@@ -77,6 +81,7 @@ public class Habit {
         try {
             JSONObject obj = new JSONObject(json);
             Habit h = new Habit(obj.getInt("id"), obj.getString("name"), obj.optString("emoji", "\u2705"));
+            h.createdAt = obj.optString("createdAt", h.createdAt);
             JSONArray dates = obj.getJSONArray("dates");
             for (int i = 0; i < dates.length(); i++) h.completedDates.add(dates.getString(i));
             h.freezesUsed = obj.optInt("freezesUsed", 0);

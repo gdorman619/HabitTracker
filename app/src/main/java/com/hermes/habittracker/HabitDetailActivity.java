@@ -147,9 +147,10 @@ public class HabitDetailActivity extends AppCompatActivity {
         freezeSection.addView(freezeBtn);
         root.addView(freezeSection);
 
-        // History label
+        // History label + started date
         TextView historyLabel = new TextView(this);
-        historyLabel.setText("History");
+        String startedStr = habit.createdAt != null ? habit.createdAt : "N/A";
+        historyLabel.setText("History  (started " + startedStr + ")");
         historyLabel.setTextSize(18);
         historyLabel.setTextColor(0xffcdd9e5);
         historyLabel.setTypeface(historyLabel.getTypeface(), android.graphics.Typeface.BOLD);
@@ -220,7 +221,12 @@ public class HabitDetailActivity extends AppCompatActivity {
                     day.setTextColor(0xff4cc2ff);
                     day.setBackgroundColor(0x334cc2ff);
                     day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
+                } else if (habit.createdAt != null && dateStr.compareTo(habit.createdAt) < 0) {
+                    // Before habit was created — neutral, not missed
+                    day.setTextColor(0x229aa7b4);
+                    day.setBackgroundColor(0x08ffffff);
                 } else {
+                    // After creation, not completed — missed
                     day.setTextColor(0xffd29922);
                     day.setBackgroundColor(0x33d29922);
                 }
@@ -240,6 +246,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         addLegendDot(legend, 0xff3fb950, "Done");
         addLegendDot(legend, 0x334cc2ff, "Today");
         addLegendDot(legend, 0x33d29922, "Missed");
+        addLegendDot(legend, 0x08ffffff, "N/A");
         root.addView(legend);
 
         // Edit button
