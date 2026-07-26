@@ -384,7 +384,15 @@ public class HabitDetailActivity extends AppCompatActivity {
                 day.setTextSize(13);
                 day.setGravity(Gravity.CENTER);
 
-                if (isToday) {
+                if (completed && isToday) {
+                    // Today is done: show it as a completed day, but keep a bold
+                    // cyan text so it still reads as "today". This avoids the
+                    // Today-vs-Done legend clash where a done today looked like a
+                    // separate not-done state and inflated the apparent streak.
+                    day.setTextColor(C_TODAY_FG);
+                    day.setBackgroundColor(C_DONE_BG);
+                    day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
+                } else if (isToday) {
                     day.setTextColor(C_TODAY_FG);
                     day.setBackgroundColor(C_TODAY_BG);
                     day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
