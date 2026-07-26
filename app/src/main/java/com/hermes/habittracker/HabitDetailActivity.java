@@ -287,7 +287,9 @@ public class HabitDetailActivity extends AppCompatActivity {
     }
 
     private void addFreezeSection(LinearLayout root) {
-        boolean alreadyFrozen = habit.freezesUsed > 0;
+        // A habit has an active freeze only for the CURRENT month; an older
+        // freeze has already done its job and shouldn't keep blocking a new one.
+        boolean alreadyFrozen = storage.hasFrozenThisMonth(habit);
         int remaining = storage.getFreezesRemaining();
         int max = storage.getMaxFreezes();
         boolean canFreeze = storage.canFreezeHabit(habit);
@@ -311,7 +313,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         section.addView(freezeText);
 
         TextView desc = new TextView(this);
-        desc.setText(alreadyFrozen ? "Your streak is protected from 1 missed day."
+        desc.setText(alreadyFrozen ? "Your streak is protected from up to " + max + " missed days."
                                     : "A freeze protects today or yesterday if you miss it. Tap a missed day in the calendar, or use the button below.");
         desc.setTextSize(12);
         desc.setTextColor(0x889aa7b4);

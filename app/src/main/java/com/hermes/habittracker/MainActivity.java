@@ -93,13 +93,7 @@ public class MainActivity extends AppCompatActivity {
         adapter = new HabitAdapter(habits, new HabitAdapter.OnHabitToggle() {
             @Override
             public void onToggle(int pos) {
-                habits.get(pos).toggleToday();
-                storage.updateHabit(habits.get(pos));
-                sortHabits();
-                adapter.update(habits);
-                updateCount();
-                StreaksWidgetProvider.updateAllWidgets(MainActivity.this);
-                showUndoToast(pos);
+                toggleHabitAt(pos);
             }
             @Override
             public void onLongClick(int pos) {
@@ -112,8 +106,9 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra("habit_id", habits.get(pos).id);
                 startActivity(intent);
             }
-        });
+        }, storage);
         list.setAdapter(adapter);
+
 
         FloatingActionButton addBtn = findViewById(R.id.addButton);
         addBtn.setOnClickListener(v -> showAddDialog());
@@ -184,42 +179,72 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void showUndoToast(int pos) {
-        View view = findViewById(android.R.id.content);
-        Snackbar.make(view, "Habit toggled", Snackbar.LENGTH_SHORT)
-            .setAction("Undo", v -> {
-                habits.get(pos).toggleToday();
-                storage.updateHabit(habits.get(pos));
-                adapter.notifyItemChanged(pos);
-                updateCount();
-                StreaksWidgetProvider.updateAllWidgets(this);
-            })
-            .show();
+    /**
+     * Toggle a habit's completion for today at a given position, refresh the UI,
+     * and offer a 5s Undo. The Undo restores the SAME habit (matched by id), not
+     * the list position — because the list gets re-sorted after toggling, the old
+     * position would now point at a different habit.
+     */
+    private void toggleHabitAt(int pos) {
+        if (pos < 0 || pos >= habits.size()) return;
+        final int habitId = habits.get(pos).id;
+        habits.get(pos).toggleToday();
+        storage.updateHabit(habits.get(pos));
+        sortHabits();
+        adapter.update(habits);
+        updateCount();
+        StreaksWidgetProvider.updateAllWidgets(this);
+        showUndoToast(habitId);
     }
 
-    private void showHabitMenu(int pos) {
+    private void showUndoToast(int habitId) {
+        View view = findViewById(android.R.id.content);
+        Snackbar.make(view, "Habit toggled", Snackbar.LENGTH_SHORT)
+                .setAction("Undo", v -> {
+                    // Find this habit by id (position is stale after re-sort)
+                    for (int i = 0; i < habits.size(); i++) {
+                        if (habits.get(i).id == habitId) {
+                            habits.get(i).toggleToday();   // toggle back
+                            storage.updateHabit(habits.get(i));
+                            sortHabits();
+                            adapter.update(habits);
+                            updateCount();
+                            StreaksWidgetProvider.updateAllWidgets(this);
+                            break;
+                        }
+                    }
+                })
+                .show();
+    }
+
+    private void showHabitMenu(final int pos) {
+        if (pos < 0 || pos >= habits.size()) return;
+        final int habitId = habits.get(pos).id;
         String[] options = {"View History", "Edit Habit", "Delete Habit"};
         new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
             .setTitle(habits.get(pos).emoji + " " + habits.get(pos).name)
             .setItems(options, (d, which) -> {
+                Habit target = null;
+                for (Habit h : habits) if (h.id == habitId) { target = h; break; }
+                if (target == null) return;
                 switch (which) {
                     case 0: // View History
                         Intent intent = new Intent(this, HabitDetailActivity.class);
-                        intent.putExtra("habit_id", habits.get(pos).id);
+                        intent.putExtra("habit_id", habitId);
                         startActivity(intent);
                         break;
                     case 1: // Edit
                         Intent editIntent = new Intent(this, HabitDetailActivity.class);
-                        editIntent.putExtra("habit_id", habits.get(pos).id);
+                        editIntent.putExtra("habit_id", habitId);
                         startActivity(editIntent);
                         break;
                     case 2: // Delete
                         new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
                             .setTitle("Delete habit?")
-                            .setMessage(habits.get(pos).name)
+                            .setMessage(target.name)
                             .setPositiveButton("Delete", (d2, w) -> {
-                                storage.deleteHabit(habits.get(pos).id);
-                                habits.remove(pos);
+                                storage.deleteHabit(habitId);
+                                habits.removeIf(h -> h.id == habitId);
                                 sortHabits();
                                 adapter.update(habits);
                                 updateCount();

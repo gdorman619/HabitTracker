@@ -24,6 +24,7 @@ import java.util.List;
 public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
     private List<Habit> habits;
     private final OnHabitToggle listener;
+    private final HabitStorage storage;
 
     public interface OnHabitToggle {
         void onToggle(int position);    // checkbox tapped
@@ -31,9 +32,10 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         void onClick(int position);     // tap row (open detail)
     }
 
-    public HabitAdapter(List<Habit> habits, OnHabitToggle listener) {
+    public HabitAdapter(List<Habit> habits, OnHabitToggle listener, HabitStorage storage) {
         this.habits = habits;
         this.listener = listener;
+        this.storage = storage;
     }
 
     public void update(List<Habit> newHabits) {
@@ -54,8 +56,8 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         holder.emoji.setText(h.emoji);
         holder.name.setText(h.name);
 
-        // Show freeze badge if habit has a freeze applied
-        if (h.freezesUsed > 0) {
+        // Show freeze badge if the habit has a freeze active this month
+        if (storage.hasFrozenThisMonth(h)) {
             holder.freezeBadge.setVisibility(View.VISIBLE);
         } else {
             holder.freezeBadge.setVisibility(View.GONE);
@@ -68,16 +70,19 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         } else {
             holder.streak.setVisibility(View.GONE);
         }
-        holder.check.setOnCheckedChangeListener(null);
-        holder.check.setChecked(h.isDoneToday());
         holder.check.setOnCheckedChangeListener((v, checked) -> {
-            if (listener != null) listener.onToggle(holder.getAdapterPosition());
+            // Use the binding adapter position (stable during layout); ignore if the
+            // row is mid-recycle (position == NO_POSITION) to avoid ArrayIndexOutOfBounds.
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && listener != null) listener.onToggle(pos);
         });
         holder.itemView.setOnClickListener(v -> {
-            if (listener != null) listener.onClick(holder.getAdapterPosition());
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && listener != null) listener.onClick(pos);
         });
         holder.itemView.setOnLongClickListener(v -> {
-            if (listener != null) listener.onLongClick(holder.getAdapterPosition());
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && listener != null) listener.onLongClick(pos);
             return true;
         });
     }

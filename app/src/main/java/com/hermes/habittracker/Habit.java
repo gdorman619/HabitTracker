@@ -10,8 +10,8 @@ package com.hermes.habittracker;
  *   - createdAt: date the habit was created (yyyy-MM-dd). Used by the calendar
  *       to distinguish "before habit existed" (neutral N/A) from "missed" days.
  *   - completedDates: list of dates (yyyy-MM-dd) the habit was marked done.
- *   - frozenDates: list of dates that were covered by a streak freeze.
- *   - freezesUsed: how many freezes have been applied to this habit (0 or 1).
+ *   - frozenDates: list of dates that were covered by a streak freeze
+ *       (also used to detect whether a habit currently has an active freeze)
  *
  * Serialized to/from JSON for SharedPreferences storage. No Room/SQLite —
  * keeps the app simple and 100% offline.
@@ -30,8 +30,7 @@ public class Habit {
     public String emoji;
     public String createdAt;                    // yyyy-MM-dd, set on creation
     public List<String> completedDates = new ArrayList<>();  // dates marked done
-    public List<String> frozenDates = new ArrayList<>();    // dates covered by freeze
-    public int freezesUsed = 0;                 // 0 = not frozen, 1 = frozen
+    public List<String> frozenDates = new ArrayList<>();    // dates covered by freeze (also used to detect an active freeze)
 
     /** Create a new habit. createdAt defaults to today. */
     public Habit(int id, String name, String emoji) {
@@ -48,15 +47,38 @@ public class Habit {
      *   - If neither today nor yesterday is completed, streak = 0.
      *   - Otherwise, walk backwards day-by-day from today (or yesterday).
      *   - Each completed day increments the streak.
-     *   - A missed day counts as a skip IF freezesUsed > 0 (freeze covers it).
+     *   - A missed day counts as a skip IF it was frozen (frozenDates contains it).
      *   - A second miss (or a miss with no freeze) breaks the streak.
      *
      * @return current streak in days
      */
-    public int getStreak() {
+    /**
+     * Return the local yyyy-MM-dd string for "today + deltaDays", stepping by
+     * Calendar day (DST-safe) instead of raw millisecond subtraction.
+     */
+    public static String dateOffset(int deltaDays) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        String today = sdf.format(new java.util.Date());
-        String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000L));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        cal.add(java.util.Calendar.DATE, deltaDays);
+        return sdf.format(cal.getTime());
+    }
+
+    /**
+     * Calculate the current streak (consecutive covered days, with freeze tolerance).
+     *
+     * Walks backwards day-by-day using Calendar (DST-safe), starting at today (or
+     * yesterday if today isn't covered). A "covered" day is completed OR frozen.
+     * A missed day with no freeze breaks the streak.
+     *
+     * @return current streak in days
+     */
+    public int getStreak() {
+        String today = dateOffset(0);
+        String yesterday = dateOffset(-1);
 
         // A day "covers" the streak if it was completed OR frozen.
         boolean todayCovered = completedDates.contains(today) || frozenDates.contains(today);
@@ -66,24 +88,24 @@ public class Habit {
         if (!todayCovered && !yestCovered) return 0;
 
         int streak = 0;
-        // Start the walk at today if today is covered (done or frozen), otherwise
-        // at yesterday — the streak is still alive via yesterday.
-        long offset = (todayCovered) ? 0 : 86400000L;
+        // Start the walk at today if today is covered, otherwise at yesterday.
+        java.util.Calendar walk = java.util.Calendar.getInstance();
+        walk.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        walk.set(java.util.Calendar.MINUTE, 0);
+        walk.set(java.util.Calendar.SECOND, 0);
+        walk.set(java.util.Calendar.MILLISECOND, 0);
+        if (!todayCovered) walk.add(java.util.Calendar.DATE, -1); // start at yesterday
 
-        for (int i = 0; i < 366; i++) {
-            String checkDate = sdf.format(new java.util.Date(System.currentTimeMillis() - offset - (long) i * 86400000L));
-            if (completedDates.contains(checkDate)) {
-                streak++;
-            } else if (frozenDates.contains(checkDate)) {
-                // This missed day is covered by a freeze — counted, streak continues.
-                // A freeze can only be applied to today/yesterday (enforced at apply
-                // time in HabitStorage), so a frozen date here is always an adjacent
-                // gap that legitimately protects the streak.
-                streak++;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        // Cap the walk (~10 years) so a pathological data set can never loop forever.
+        for (int i = 0; i < 3660; i++) {
+            String checkDate = sdf.format(walk.getTime());
+            if (completedDates.contains(checkDate) || frozenDates.contains(checkDate)) {
+                streak++; // completed OR frozen (a freeze protects the adjacent gap)
             } else {
-                // Missed day with no freeze — streak breaks.
-                break;
+                break;     // missed day with no freeze — streak breaks
             }
+            walk.add(java.util.Calendar.DATE, -1);
         }
         return streak;
     }
@@ -169,7 +191,6 @@ public class Habit {
             JSONArray frozen = new JSONArray();
             for (String d : frozenDates) frozen.put(d);
             obj.put("frozenDates", frozen);
-            obj.put("freezesUsed", freezesUsed);
         } catch (Exception e) {}
         return obj.toString();
     }
@@ -213,7 +234,6 @@ public class Habit {
                 for (int i = 0; i < frozen.length(); i++) h.frozenDates.add(frozen.getString(i));
             }
 
-            h.freezesUsed = obj.optInt("freezesUsed", 0);
             return h;
         } catch (Exception e) {
             return null;

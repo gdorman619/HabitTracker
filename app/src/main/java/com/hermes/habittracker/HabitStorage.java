@@ -98,12 +98,26 @@ public class HabitStorage {
     }
 
     public int getNextId() {
-        return (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
+        // Generate a unique id: base on the clock, then walk forward until it
+        // doesn't collide with any existing habit (two habits created in the same
+        // millisecond used to get the same id and silently overwrite each other).
+        int id = (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
+        List<Habit> existing = loadHabits();
+        while (true) {
+            boolean dup = false;
+            for (Habit h : existing) {
+                if (h.id == id) { dup = true; break; }
+            }
+            if (!dup) break;
+            id = (id + 1) % Integer.MAX_VALUE;
+        }
+        return id;
     }
 
     // === Freeze logic ===
     // Global monthly limit: total freezes across ALL habits per month
-    // Per-habit: each habit can only be frozen once (freezesUsed = 0 or 1)
+    // Per-habit: a habit is "frozen" if frozenDates is non-empty; eligibility
+    // re-evaluates each month as the quota resets.
 
     /** Maximum freezes available per month based on free/paid status. */
     public int getMaxFreezes() {
@@ -138,9 +152,21 @@ public class HabitStorage {
         return getMaxFreezes() - getFreezesUsedThisMonth();
     }
 
-    /** Check if a specific habit can be frozen: not already frozen AND global limit not reached. */
+    /** True if the habit has used a freeze in the CURRENT month. Old freezes (prior
+     *  months) no longer block a new freeze — they've already done their job
+     *  protecting a past gap and are just history. This is what lets a habit be
+     *  re-frozen each month instead of being locked after the first use. */
+    public boolean hasFrozenThisMonth(Habit h) {
+        String thisMonth = getCurrentMonth();
+        for (String d : h.frozenDates) {
+            if (d.length() >= 7 && d.substring(0, 7).equals(thisMonth)) return true;
+        }
+        return false;
+    }
+
+    /** Check if a specific habit can be frozen: not already frozen THIS MONTH AND global limit not reached. */
     public boolean canFreezeHabit(Habit h) {
-        return h.freezesUsed == 0 && canUseFreeze();
+        return !hasFrozenThisMonth(h) && canUseFreeze();
     }
 
     /**
@@ -175,7 +201,6 @@ public class HabitStorage {
         if (h.createdAt != null && target.compareTo(h.createdAt) <= 0) {
             return false;
         }
-        h.freezesUsed = 1;
         h.frozenDates.add(target);
         updateHabit(h);
         useFreeze();
@@ -216,7 +241,6 @@ public class HabitStorage {
             if (i == 3) continue;
             h3.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
-        h3.freezesUsed = 1;
         h3.frozenDates.add(sdf.format(new java.util.Date(now - 3 * day)));
         habits.add(h3);
 
@@ -235,6 +259,10 @@ public class HabitStorage {
             h5.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
         habits.add(h5);
+
+        // Also reset the monthly freeze counter so the freeze UI isn't stuck on a
+        // quota that test data "used up" in a previous session.
+        prefs.edit().putString(KEY_FREEZE_MONTH, getCurrentMonth()).putInt(KEY_FREEZES_USED, 0).apply();
 
         saveHabits(habits);
     }
