@@ -131,7 +131,7 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         int best = habit.getBestStreak();
         TextView bestTv = new TextView(this);
-        bestTv.setText(best + " best");
+        bestTv.setText("Longest streak: " + best);
         bestTv.setTextSize(15);
         bestTv.setTextColor(C_MUTED);
         statsRow.addView(bestTv);
@@ -513,8 +513,12 @@ public class HabitDetailActivity extends AppCompatActivity {
         text.setText(label);
         text.setTextColor(C_MUTED);
         text.setTextSize(10);
-        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        tLp.setMarginEnd(dp(8));
+        text.setSingleLine(true);              // keep each label on one line
+        text.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        // Equal-width quarter columns: guarantees all four words fit on one
+        // row without clipping (the longest word "Frozen" gets its own column).
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tLp.setMarginEnd(dp(6));
         text.setLayoutParams(tLp);
         legend.addView(text);
     }
