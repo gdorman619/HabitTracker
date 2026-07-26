@@ -221,8 +221,8 @@ public class HabitDetailActivity extends AppCompatActivity {
                     day.setBackgroundColor(0x334cc2ff);
                     day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
                 } else {
-                    day.setTextColor(0x669aa7b4);
-                    day.setBackgroundColor(0x11ffffff);
+                    day.setTextColor(0xffd29922);
+                    day.setBackgroundColor(0x33d29922);
                 }
 
                 weekRow.addView(day);
@@ -239,7 +239,7 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         addLegendDot(legend, 0xff3fb950, "Done");
         addLegendDot(legend, 0x334cc2ff, "Today");
-        addLegendDot(legend, 0x11ffffff, "Missed");
+        addLegendDot(legend, 0x33d29922, "Missed");
         root.addView(legend);
 
         // Edit button
