@@ -10,6 +10,7 @@ public class Habit {
     public String name;
     public String emoji;
     public List<String> completedDates = new ArrayList<>();
+    public int freezesUsed = 0;
 
     public Habit(int id, String name, String emoji) {
         this.id = id;
@@ -23,18 +24,21 @@ public class Habit {
         String today = sdf.format(new java.util.Date());
         String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000));
 
-        // If today is done, count from today backwards
-        // If yesterday is done but not today, streak is still alive
         if (!completedDates.contains(today) && !completedDates.contains(yesterday)) return 0;
 
         int streak = 0;
         long offset = completedDates.contains(today) ? 0 : 86400000;
+        int skips = 0;
         for (int i = 0; i < 365; i++) {
             String checkDate = sdf.format(new java.util.Date(System.currentTimeMillis() - offset - (long) i * 86400000));
             if (completedDates.contains(checkDate)) {
                 streak++;
             } else {
-                break;
+                if (skips < freezesUsed) {
+                    skips++;
+                } else {
+                    break;
+                }
             }
         }
         return streak;
@@ -64,6 +68,7 @@ public class Habit {
             JSONArray dates = new JSONArray();
             for (String d : completedDates) dates.put(d);
             obj.put("dates", dates);
+            obj.put("freezesUsed", freezesUsed);
         } catch (Exception e) {}
         return obj.toString();
     }
@@ -74,6 +79,7 @@ public class Habit {
             Habit h = new Habit(obj.getInt("id"), obj.getString("name"), obj.optString("emoji", "\u2705"));
             JSONArray dates = obj.getJSONArray("dates");
             for (int i = 0; i < dates.length(); i++) h.completedDates.add(dates.getString(i));
+            h.freezesUsed = obj.optInt("freezesUsed", 0);
             return h;
         } catch (Exception e) {
             return null;

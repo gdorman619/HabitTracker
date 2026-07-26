@@ -3,7 +3,6 @@ package com.hermes.habittracker;
 import android.content.Context;
 import android.content.SharedPreferences;
 import org.json.JSONArray;
-import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,7 +10,10 @@ public class HabitStorage {
     private static final String PREFS = "habit_storage";
     private static final String KEY_HABITS = "habits_json";
     private static final String KEY_UNLOCKED = "is_unlocked";
+    private static final String KEY_FREEZE_MONTH = "freeze_month";
     private static final int FREE_LIMIT = 5;
+    private static final int FREE_FREEZES_PER_MONTH = 1;
+    private static final int PAID_FREEZES_PER_MONTH = 3;
 
     private final SharedPreferences prefs;
 
@@ -78,5 +80,36 @@ public class HabitStorage {
 
     public int getNextId() {
         return (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
+    }
+
+    public int getMaxFreezes() {
+        return isUnlocked() ? PAID_FREEZES_PER_MONTH : FREE_FREEZES_PER_MONTH;
+    }
+
+    public String getCurrentMonth() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US);
+        return sdf.format(new java.util.Date());
+    }
+
+    public int getFreezesUsedThisMonth() {
+        String month = getCurrentMonth();
+        String stored = prefs.getString(KEY_FREEZE_MONTH, "");
+        if (!month.equals(stored)) {
+            prefs.edit().putString(KEY_FREEZE_MONTH, month).putInt("freezes_used", 0).apply();
+            return 0;
+        }
+        return prefs.getInt("freezes_used", 0);
+    }
+
+    public boolean canUseFreeze() {
+        return getFreezesUsedThisMonth() < getMaxFreezes();
+    }
+
+    public void useFreeze() {
+        prefs.edit().putInt("freezes_used", getFreezesUsedThisMonth() + 1).apply();
+    }
+
+    public int getFreezesRemaining() {
+        return getMaxFreezes() - getFreezesUsedThisMonth();
     }
 }

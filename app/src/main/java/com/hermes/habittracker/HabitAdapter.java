@@ -16,6 +16,7 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
     public interface OnHabitToggle {
         void onToggle(int position);
         void onLongClick(int position);
+        void onClick(int position);
     }
 
     public HabitAdapter(List<Habit> habits, OnHabitToggle listener) {
@@ -42,7 +43,7 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         holder.name.setText(h.name);
         int streak = h.getStreak();
         if (streak > 0) {
-            holder.streak.setText(streak + " day streak");
+            holder.streak.setText("\uD83D\uDD25 " + streak + " day streak");
             holder.streak.setVisibility(View.VISIBLE);
         } else {
             holder.streak.setVisibility(View.GONE);
@@ -51,6 +52,9 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         holder.check.setChecked(h.isDoneToday());
         holder.check.setOnCheckedChangeListener((v, checked) -> {
             if (listener != null) listener.onToggle(holder.getAdapterPosition());
+        });
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onClick(holder.getAdapterPosition());
         });
         holder.itemView.setOnLongClickListener(v -> {
             if (listener != null) listener.onLongClick(holder.getAdapterPosition());

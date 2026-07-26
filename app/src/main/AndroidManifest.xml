@@ -15,6 +15,10 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".HabitDetailActivity"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainActivity" />
+
         <receiver android:name=".StreaksWidgetProvider" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

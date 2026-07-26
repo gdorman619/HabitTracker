@@ -1,16 +1,19 @@
 package com.hermes.habittracker;
 
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
 import java.util.Calendar;
 import java.util.List;
 
@@ -40,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
         "Excellence is not an act, but a habit.",
         "The secret of your future is hidden in your daily routine.",
         "First we make our habits, then our habits make us.",
-        "Motivation is what gets you started. Habit is what keeps you going.",
         "Small habits don't add up. They compound.",
         "The only way to finish is to start.",
         "Show up. Even when you don't feel like it.",
@@ -54,7 +56,8 @@ public class MainActivity extends AppCompatActivity {
         "The journey of a thousand miles begins with a single step.",
         "Consistency beats intensity.",
         "Every expert was once a beginner.",
-        "The man who moves a mountain begins by carrying away small stones."
+        "The man who moves a mountain begins by carrying away small stones.",
+        "Great things never come from comfort zones."
     };
 
     @Override
@@ -75,10 +78,18 @@ public class MainActivity extends AppCompatActivity {
                 adapter.notifyItemChanged(pos);
                 updateCount();
                 StreaksWidgetProvider.updateAllWidgets(MainActivity.this);
+                showUndoToast(pos);
             }
             @Override
             public void onLongClick(int pos) {
-                showDeleteDialog(pos);
+                showHabitMenu(pos);
+            }
+            @Override
+            public void onClick(int pos) {
+                // Open detail screen
+                Intent intent = new Intent(MainActivity.this, HabitDetailActivity.class);
+                intent.putExtra("habit_id", habits.get(pos).id);
+                startActivity(intent);
             }
         });
         list.setAdapter(adapter);
@@ -88,10 +99,17 @@ public class MainActivity extends AppCompatActivity {
 
         updateCount();
         showDailyQuote();
+        updateEmptyState();
+    }
 
-        if (habits.isEmpty()) {
-            Toast.makeText(this, "Tap + to add your first habit!", Toast.LENGTH_LONG).show();
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        habits = storage.loadHabits();
+        adapter.update(habits);
+        updateCount();
+        updateEmptyState();
+        StreaksWidgetProvider.updateAllWidgets(this);
     }
 
     private void showDailyQuote() {
@@ -102,18 +120,67 @@ public class MainActivity extends AppCompatActivity {
         q.setVisibility(View.VISIBLE);
     }
 
-    private void showDeleteDialog(int pos) {
-        new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
-            .setTitle("Delete habit?")
-            .setMessage(habits.get(pos).name)
-            .setPositiveButton("Delete", (d, w) -> {
-                storage.deleteHabit(habits.get(pos).id);
-                habits.remove(pos);
-                adapter.update(habits);
+    private void updateEmptyState() {
+        TextView empty = findViewById(R.id.emptyState);
+        if (empty == null) return;
+        if (habits.isEmpty()) {
+            empty.setVisibility(View.VISIBLE);
+            empty.setText("\uD83D\uDD25 Ready to build some streaks?\n\nTap the + button to add your first habit!");
+            empty.setGravity(android.view.Gravity.CENTER);
+            empty.setTextSize(16);
+            empty.setTextColor(0xff9aa7b4);
+            empty.setPadding(0, 100, 0, 0);
+        } else {
+            empty.setVisibility(View.GONE);
+        }
+    }
+
+    private void showUndoToast(int pos) {
+        View view = findViewById(android.R.id.content);
+        Snackbar.make(view, "Habit toggled", Snackbar.LENGTH_SHORT)
+            .setAction("Undo", v -> {
+                habits.get(pos).toggleToday();
+                storage.updateHabit(habits.get(pos));
+                adapter.notifyItemChanged(pos);
                 updateCount();
                 StreaksWidgetProvider.updateAllWidgets(this);
             })
-            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private void showHabitMenu(int pos) {
+        String[] options = {"View History", "Edit Habit", "Delete Habit"};
+        new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
+            .setTitle(habits.get(pos).emoji + " " + habits.get(pos).name)
+            .setItems(options, (d, which) -> {
+                switch (which) {
+                    case 0: // View History
+                        Intent intent = new Intent(this, HabitDetailActivity.class);
+                        intent.putExtra("habit_id", habits.get(pos).id);
+                        startActivity(intent);
+                        break;
+                    case 1: // Edit
+                        Intent editIntent = new Intent(this, HabitDetailActivity.class);
+                        editIntent.putExtra("habit_id", habits.get(pos).id);
+                        startActivity(editIntent);
+                        break;
+                    case 2: // Delete
+                        new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
+                            .setTitle("Delete habit?")
+                            .setMessage(habits.get(pos).name)
+                            .setPositiveButton("Delete", (d2, w) -> {
+                                storage.deleteHabit(habits.get(pos).id);
+                                habits.remove(pos);
+                                adapter.update(habits);
+                                updateCount();
+                                updateEmptyState();
+                                StreaksWidgetProvider.updateAllWidgets(this);
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                        break;
+                }
+            })
             .show();
     }
 
@@ -134,10 +201,10 @@ public class MainActivity extends AppCompatActivity {
 
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_habit, null);
         EditText input = dialogView.findViewById(R.id.habitInput);
-        android.widget.LinearLayout emojiRow = dialogView.findViewById(R.id.emojiRow);
+        LinearLayout emojiRow = dialogView.findViewById(R.id.emojiRow);
         selectedEmojiIdx = 0;
 
-        android.widget.TextView[] emojiViews = new android.widget.TextView[emojis.length];
+        TextView[] emojiViews = new TextView[emojis.length];
         for (int i = 0; i < emojis.length; i++) {
             TextView tv = new TextView(this);
             tv.setText(emojis[i]);
@@ -168,6 +235,7 @@ public class MainActivity extends AppCompatActivity {
                 habits.add(h);
                 adapter.notifyItemInserted(habits.size() - 1);
                 updateCount();
+                updateEmptyState();
                 StreaksWidgetProvider.updateAllWidgets(this);
                 Toast.makeText(this, "Habit added!", Toast.LENGTH_SHORT).show();
             })
