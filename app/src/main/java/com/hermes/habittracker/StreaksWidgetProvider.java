@@ -44,7 +44,6 @@ public class StreaksWidgetProvider extends AppWidgetProvider {
         HabitStorage storage = new HabitStorage(context);
         List<Habit> habits = storage.loadHabits();
 
-        // Sort: not-done-first (by creation order), then done (by creation order)
         List<Habit> notDone = new ArrayList<>();
         List<Habit> done = new ArrayList<>();
         for (Habit h : habits) {
@@ -60,8 +59,6 @@ public class StreaksWidgetProvider extends AppWidgetProvider {
 
             int doneCount = done.size();
             views.setTextViewText(R.id.widgetCount, doneCount + "/" + habits.size() + " done");
-
-            // Clear old rows
             views.removeAllViews(R.id.widgetRows);
 
             if (habits.isEmpty()) {
@@ -81,13 +78,6 @@ public class StreaksWidgetProvider extends AppWidgetProvider {
                     row.setTextViewText(R.id.wRowStreak, streak > 0 ? "\uD83D\uDD25" + streak : "");
                     row.setTextViewText(R.id.wRowCheck, h.isDoneToday() ? "\u2705" : "\u2B1C");
 
-                    // Dim completed habits slightly for visual separation
-                    if (h.isDoneToday()) {
-                        row.setInt(R.id.wRowName, "setTextColor", 0x889aa7b4);
-                        row.setInt(R.id.wRowEmoji, "setAlpha", 140);
-                    }
-
-                    // Click on the row toggles the habit
                     Intent toggleIntent = new Intent(context, StreaksWidgetProvider.class);
                     toggleIntent.setAction(ACTION_TOGGLE);
                     toggleIntent.putExtra(EXTRA_HABIT_ID, h.id);
@@ -111,18 +101,14 @@ public class StreaksWidgetProvider extends AppWidgetProvider {
                 }
             }
 
-            // Tap header/empty to open app
-            views.setOnClickPendingIntent(R.id.widgetCount, pi_open(context, id));
-            views.setOnClickPendingIntent(R.id.widgetEmpty, pi_open(context, id));
+            Intent openIntent = new Intent(context, MainActivity.class);
+            PendingIntent openPi = PendingIntent.getActivity(context, 1000 + id, openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.widgetCount, openPi);
+            views.setOnClickPendingIntent(R.id.widgetEmpty, openPi);
 
             manager.updateAppWidget(id, views);
         }
-    }
-
-    private static PendingIntent pi_open(Context context, int id) {
-        Intent openIntent = new Intent(context, MainActivity.class);
-        return PendingIntent.getActivity(context, 1000 + id, openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     public static void updateAllWidgets(Context context) {
