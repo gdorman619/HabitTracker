@@ -152,19 +152,23 @@ public class HabitStorage {
      */
     public boolean freezeHabit(Habit h) {
         if (!canFreezeHabit(h)) return false;
-        h.freezesUsed = 1;
-        // Find the most recent missed day (between createdAt and today) and mark it frozen
+        // A freeze only protects the adjacent gap: today, or yesterday. Any older
+        // missed day is already a real break in the streak and can't be revived.
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        long now = System.currentTimeMillis();
-        long day = 86400000L;
-        for (int i = 1; i <= 365; i++) {
-            String dateStr = sdf.format(new java.util.Date(now - i * day));
-            if (h.createdAt != null && dateStr.compareTo(h.createdAt) < 0) break;
-            if (!h.completedDates.contains(dateStr) && !h.frozenDates.contains(dateStr)) {
-                h.frozenDates.add(dateStr);
-                break;
-            }
+        String today = sdf.format(new java.util.Date());
+        String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000L));
+        String target = null;
+        if (!h.completedDates.contains(today) && !h.frozenDates.contains(today)) {
+            target = today;          // today was missed -> freeze it
+        } else if (!h.completedDates.contains(yesterday) && !h.frozenDates.contains(yesterday)) {
+            target = yesterday;      // yesterday was missed -> freeze it
         }
+        if (target == null) {
+            // No adjacent missed day to protect — nothing to freeze.
+            return false;
+        }
+        h.freezesUsed = 1;
+        h.frozenDates.add(target);
         updateHabit(h);
         useFreeze();
         return true;

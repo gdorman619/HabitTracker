@@ -54,28 +54,34 @@ public class Habit {
      * @return current streak in days
      */
     public int getStreak() {
-        if (completedDates.isEmpty()) return 0;
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         String today = sdf.format(new java.util.Date());
-        String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000));
+        String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000L));
 
-        // If neither today nor yesterday is done, the streak is dead
-        if (!completedDates.contains(today) && !completedDates.contains(yesterday)) return 0;
+        // A day "covers" the streak if it was completed OR frozen.
+        boolean todayCovered = completedDates.contains(today) || frozenDates.contains(today);
+        boolean yestCovered = completedDates.contains(yesterday) || frozenDates.contains(yesterday);
+
+        // If neither today nor yesterday is covered, the streak is dead.
+        if (!todayCovered && !yestCovered) return 0;
 
         int streak = 0;
-        // Start from today if done, otherwise from yesterday (streak still alive)
-        long offset = completedDates.contains(today) ? 0 : 86400000;
-        int skips = 0;  // how many missed days we've skipped via freeze
+        // Start the walk at today if today is covered (done or frozen), otherwise
+        // at yesterday — the streak is still alive via yesterday.
+        long offset = (todayCovered) ? 0 : 86400000L;
 
-        for (int i = 0; i < 365; i++) {
-            String checkDate = sdf.format(new java.util.Date(System.currentTimeMillis() - offset - (long) i * 86400000));
+        for (int i = 0; i < 366; i++) {
+            String checkDate = sdf.format(new java.util.Date(System.currentTimeMillis() - offset - (long) i * 86400000L));
             if (completedDates.contains(checkDate)) {
                 streak++;
-            } else if (skips < freezesUsed) {
-                // This missed day is covered by a freeze — skip it, streak continues
-                skips++;
+            } else if (frozenDates.contains(checkDate)) {
+                // This missed day is covered by a freeze — counted, streak continues.
+                // A freeze can only be applied to today/yesterday (enforced at apply
+                // time in HabitStorage), so a frozen date here is always an adjacent
+                // gap that legitimately protects the streak.
+                streak++;
             } else {
-                // Missed day with no freeze left — streak breaks
+                // Missed day with no freeze — streak breaks.
                 break;
             }
         }

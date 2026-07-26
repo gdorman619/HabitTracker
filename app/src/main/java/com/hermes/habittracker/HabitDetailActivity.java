@@ -202,16 +202,23 @@ public class HabitDetailActivity extends AppCompatActivity {
         root.addView(calendarContainer);
         rebuildCalendar();
 
-        // Legend
-        LinearLayout legend = new LinearLayout(this);
-        legend.setOrientation(LinearLayout.HORIZONTAL);
-        legend.setPadding(0, dp(12), 0, dp(16));
-        addLegend(legend, C_DONE_BG, "Done");
-        addLegend(legend, C_TODAY_BG, "Today");
-        addLegend(legend, C_MISS_BG, "Missed");
-        addLegend(legend, C_FROZEN_BG, "\u2744 Frozen");
-        addLegend(legend, C_NA_BG, "N/A");
-        root.addView(legend);
+        // Legend — laid out as two wrapped rows so labels never truncate.
+        LinearLayout legendWrap = new LinearLayout(this);
+        legendWrap.setOrientation(LinearLayout.VERTICAL);
+        legendWrap.setPadding(0, dp(12), 0, dp(16));
+        LinearLayout legendRow1 = new LinearLayout(this);
+        legendRow1.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout legendRow2 = new LinearLayout(this);
+        legendRow2.setOrientation(LinearLayout.HORIZONTAL);
+        legendRow2.setPadding(0, dp(6), 0, 0);
+        addLegend(legendRow1, C_DONE_BG, "Done");
+        addLegend(legendRow1, C_TODAY_BG, "Today");
+        addLegend(legendRow1, C_MISS_BG, "Missed");
+        addLegend(legendRow2, C_FROZEN_BG, "❄ Frozen");
+        addLegend(legendRow2, C_NA_BG, "N/A");
+        legendWrap.addView(legendRow1);
+        legendWrap.addView(legendRow2);
+        root.addView(legendWrap);
 
         // Edit + Delete buttons
         addButton(root, "  Edit Habit  ", C_ACCENT, C_BG, v -> showEditDialog());
@@ -268,7 +275,8 @@ public class HabitDetailActivity extends AppCompatActivity {
         section.addView(freezeText);
 
         TextView desc = new TextView(this);
-        desc.setText(alreadyFrozen ? "Your streak is protected from 1 missed day." : "Freezes protect your streak when you miss a day.");
+        desc.setText(alreadyFrozen ? "Your streak is protected from 1 missed day."
+                                    : "A freeze protects today or yesterday if you miss it. Tap a missed day in the calendar, or use the button below.");
         desc.setTextSize(12);
         desc.setTextColor(0x889aa7b4);
         LinearLayout.LayoutParams dLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -277,14 +285,21 @@ public class HabitDetailActivity extends AppCompatActivity {
         section.addView(desc);
 
         TextView btn = new TextView(this);
+        // A freeze only helps if there's an adjacent missed day (today/yesterday).
+        boolean adjacentMiss = isAdjacentMissed(habit);
+        boolean showUse = canFreeze && adjacentMiss;
         if (alreadyFrozen) {
             btn.setText("  \u2744 Already Frozen  ");
             btn.setTextColor(C_MUTED);
             btn.setBackgroundColor(C_BORDER);
-        } else if (canFreeze) {
+        } else if (showUse) {
             btn.setText("  \u2744 Use Freeze  ");
             btn.setTextColor(C_BG);
             btn.setBackgroundColor(C_ACCENT);
+        } else if (canFreeze && !adjacentMiss) {
+            btn.setText("  No Miss To Protect Yet  ");
+            btn.setTextColor(C_MUTED);
+            btn.setBackgroundColor(C_BORDER);
         } else {
             btn.setText(remaining > 0 ? "  Already Used  " : "  No Freezes Left  ");
             btn.setTextColor(C_MUTED);
@@ -296,16 +311,27 @@ public class HabitDetailActivity extends AppCompatActivity {
         LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         bLp.topMargin = dp(10);
         btn.setLayoutParams(bLp);
-        if (canFreeze) {
+        if (showUse) {
             btn.setOnClickListener(v -> {
                 if (storage.freezeHabit(habit)) {
                     Toast.makeText(this, "\u2744\uFE0F Freeze applied!", Toast.LENGTH_SHORT).show();
                     recreate();
+                } else {
+                    Toast.makeText(this, "Nothing to freeze right now.", Toast.LENGTH_SHORT).show();
                 }
             });
         }
         section.addView(btn);
         root.addView(section);
+    }
+
+    /** True if today or yesterday is a missed (not done, not frozen) day. */
+    private boolean isAdjacentMissed(Habit h) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        String today = sdf.format(new java.util.Date());
+        String yesterday = sdf.format(new java.util.Date(System.currentTimeMillis() - 86400000L));
+        return (!h.completedDates.contains(today) && !h.frozenDates.contains(today))
+            || (!h.completedDates.contains(yesterday) && !h.frozenDates.contains(yesterday));
     }
 
     private void rebuildCalendar() {
@@ -328,6 +354,7 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         String todayStr = sdf.format(new Date());
+        String yesterdayStr = sdf.format(new Date(System.currentTimeMillis() - 86400000L));
 
         // Day labels
         String[] dayLabels = {"S", "M", "T", "W", "T", "F", "S"};
@@ -384,6 +411,22 @@ public class HabitDetailActivity extends AppCompatActivity {
                 day.setTextSize(13);
                 day.setGravity(Gravity.CENTER);
 
+                // Tap a missed TODAY/YESTERDAY cell to apply a freeze (adjacent-gap rule).
+                boolean isTodayOrYest = isToday
+                        || dateStr.equals(yesterdayStr);
+                boolean missedAdjacent = isTodayOrYest && !completed && !frozen;
+                if (missedAdjacent && storage.canFreezeHabit(habit)) {
+                    day.setClickable(true);
+                    day.setOnClickListener(v -> {
+                        if (storage.freezeHabit(habit)) {
+                            Toast.makeText(this, "\u2744\uFE0F Freeze applied!", Toast.LENGTH_SHORT).show();
+                            recreate();
+                        } else {
+                            Toast.makeText(this, "Nothing to freeze right now.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+
                 if (completed && isToday) {
                     // Today is done: show it as a completed day, but keep a bold
                     // cyan text so it still reads as "today". This avoids the
@@ -392,6 +435,12 @@ public class HabitDetailActivity extends AppCompatActivity {
                     day.setTextColor(C_TODAY_FG);
                     day.setBackgroundColor(C_DONE_BG);
                     day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
+                } else if (frozen) {
+                    // A frozen (missed but protected) day shows as Frozen, even if
+                    // it is today or yesterday — that's the whole point of the freeze.
+                    day.setTextColor(C_FROZEN_FG);
+                    day.setBackgroundColor(C_FROZEN_BG);
+                    day.setText("\u2744");
                 } else if (isToday) {
                     day.setTextColor(C_TODAY_FG);
                     day.setBackgroundColor(C_TODAY_BG);
@@ -399,10 +448,6 @@ public class HabitDetailActivity extends AppCompatActivity {
                 } else if (completed) {
                     day.setTextColor(C_DONE_FG);
                     day.setBackgroundColor(C_DONE_BG);
-                } else if (frozen) {
-                    day.setTextColor(C_FROZEN_FG);
-                    day.setBackgroundColor(C_FROZEN_BG);
-                    day.setText("\u2744");
                 } else if (isFuture || beforeStart) {
                     day.setTextColor(C_NA_FG);
                     day.setBackgroundColor(C_NA_BG);
