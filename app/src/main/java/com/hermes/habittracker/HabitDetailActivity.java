@@ -43,6 +43,7 @@ public class HabitDetailActivity extends AppCompatActivity {
     private Calendar viewMonth = Calendar.getInstance();
     private LinearLayout calendarContainer;
     private TextView monthLabel;   // field ref so rebuildCalendar() never needs findViewById
+    private TextView nextMonthBtn; // field ref so rebuildCalendar() can disable forward nav
 
     // === Color palette (ARGB hex) ===
     // Softer, more distinct colors for better visibility on dark background
@@ -188,6 +189,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         nextBtn.setTextColor(C_ACCENT);
         nextBtn.setGravity(Gravity.CENTER);
         nextBtn.setOnClickListener(v -> { viewMonth.add(Calendar.MONTH, 1); rebuildCalendar(); });
+        this.nextMonthBtn = nextBtn;
 
         monthHeader.addView(prevBtn);
         monthHeader.addView(monthLabel);
@@ -213,7 +215,7 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         // Edit + Delete buttons
         addButton(root, "  Edit Habit  ", C_ACCENT, C_BG, v -> showEditDialog());
-        addButton(root, "  Delete Habit  ", C_RED, 0, v -> {
+        addButton(root, "  Delete Habit  ", C_RED, C_TEXT, v -> {
             new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
                 .setTitle("Delete habit?")
                 .setMessage(habit.name)
@@ -230,7 +232,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         TextView btn = new TextView(this);
         btn.setText(text);
         btn.setTextSize(15);
-        btn.setTextColor(fg == 0 ? C_RED : fg);
+        btn.setTextColor(fg == 0 ? C_TEXT : fg); // default: light text on colored bg
         btn.setBackgroundColor(bg);
         btn.setGravity(Gravity.CENTER);
         btn.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -314,6 +316,15 @@ public class HabitDetailActivity extends AppCompatActivity {
         if (monthLabel == null) return; // safety: nothing to label yet
         SimpleDateFormat monthFmt = new SimpleDateFormat("MMMM yyyy", Locale.US);
         monthLabel.setText(monthFmt.format(viewMonth.getTime()));
+
+        // Disable forward navigation once we reach the current month (no future to view).
+        if (nextMonthBtn != null) {
+            Calendar now = Calendar.getInstance();
+            boolean atCurrentMonth = viewMonth.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+                    && viewMonth.get(Calendar.MONTH) == now.get(Calendar.MONTH);
+            nextMonthBtn.setEnabled(!atCurrentMonth);
+            nextMonthBtn.setAlpha(atCurrentMonth ? 0.3f : 1.0f);
+        }
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         String todayStr = sdf.format(new Date());
