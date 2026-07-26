@@ -28,7 +28,7 @@ public class HabitStorage {
     private static final String KEY_FREEZE_MONTH = "freeze_month"; // "yyyy-MM" for monthly reset
     private static final String KEY_FREEZES_USED = "freezes_used_global"; // global monthly counter
     private static final int FREE_LIMIT = 5;                     // max habits for free users
-    private static final int FREE_FREEZES_PER_MONTH = 3;        // free users: 3 freezes/month
+    private static final int FREE_FREEZES_PER_MONTH = 1;        // free users: 1 freeze/month
     private static final int PAID_FREEZES_PER_MONTH = 3;        // paid users: 3 freezes/month
 
     private final SharedPreferences prefs;

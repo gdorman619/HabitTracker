@@ -88,6 +88,56 @@ public class Habit {
         return streak;
     }
 
+    /**
+     * Calculate the longest streak (consecutive covered days) this habit has ever had.
+     *
+     * A "covered" day is one that was completed OR frozen. We walk from the
+     * creation date through today and track the longest run of consecutive
+     * covered days. Frozen days extend a run just like completed days, so a
+     * best streak reflects freezes that were used to protect it.
+     *
+     * @return best (longest) streak in days, 0 if no days were ever covered
+     */
+    public int getBestStreak() {
+        if (completedDates.isEmpty() && frozenDates.isEmpty()) return 0;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        java.util.Set<String> covered = new java.util.HashSet<>();
+        covered.addAll(completedDates);
+        covered.addAll(frozenDates);
+
+        // Start walking at the creation date (fall back to earliest completed date).
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        if (createdAt != null && !createdAt.isEmpty()) {
+            try { cal.setTime(sdf.parse(createdAt)); } catch (Exception ignored) {}
+        } else if (!completedDates.isEmpty()) {
+            String earliest = completedDates.get(0);
+            for (String d : completedDates) if (d.compareTo(earliest) < 0) earliest = d;
+            try { cal.setTime(sdf.parse(earliest)); } catch (Exception ignored) {}
+        }
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+
+        java.util.Calendar today = java.util.Calendar.getInstance();
+        today.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        today.set(java.util.Calendar.MINUTE, 0);
+        today.set(java.util.Calendar.SECOND, 0);
+        today.set(java.util.Calendar.MILLISECOND, 0);
+
+        int best = 0, run = 0;
+        while (!cal.after(today)) {
+            if (covered.contains(sdf.format(cal.getTime()))) {
+                run++;
+                if (run > best) best = run;
+            } else {
+                run = 0;
+            }
+            cal.add(java.util.Calendar.DATE, 1);
+        }
+        return best;
+    }
+
     /** Check if the habit was completed today. */
     public boolean isDoneToday() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);

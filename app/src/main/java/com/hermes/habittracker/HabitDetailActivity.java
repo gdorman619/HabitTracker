@@ -111,29 +111,30 @@ public class HabitDetailActivity extends AppCompatActivity {
         header.setPadding(0, 0, 0, dp(8));
         root.addView(header);
 
-        // Streak + total row
+        // Streak + best-ever streak row
         LinearLayout statsRow = new LinearLayout(this);
         statsRow.setOrientation(LinearLayout.HORIZONTAL);
         statsRow.setGravity(Gravity.CENTER_VERTICAL);
 
         int streak = habit.getStreak();
         TextView streakTv = new TextView(this);
-        streakTv.setText(streak > 0 ? "\uD83D\uDD25 " + streak + " day streak" : "No current streak");
+        streakTv.setText(streak > 0 ? "🔥 " + streak + " day streak" : "No current streak");
         streakTv.setTextSize(15);
         streakTv.setTextColor(streak > 0 ? 0xffd29922 : C_MUTED);
         statsRow.addView(streakTv);
 
         TextView sep = new TextView(this);
-        sep.setText("  \u2022  ");
+        sep.setText("  •  ");
         sep.setTextColor(C_MUTED);
         sep.setTextSize(15);
         statsRow.addView(sep);
 
-        TextView totalTv = new TextView(this);
-        totalTv.setText(habit.completedDates.size() + " total");
-        totalTv.setTextSize(15);
-        totalTv.setTextColor(C_MUTED);
-        statsRow.addView(totalTv);
+        int best = habit.getBestStreak();
+        TextView bestTv = new TextView(this);
+        bestTv.setText(best + " best");
+        bestTv.setTextSize(15);
+        bestTv.setTextColor(C_MUTED);
+        statsRow.addView(bestTv);
 
         LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         sLp.bottomMargin = dp(4);
@@ -203,22 +204,16 @@ public class HabitDetailActivity extends AppCompatActivity {
         root.addView(calendarContainer);
         rebuildCalendar();
 
-        // Legend — laid out as two wrapped rows so labels never truncate.
-        LinearLayout legendWrap = new LinearLayout(this);
-        legendWrap.setOrientation(LinearLayout.VERTICAL);
-        legendWrap.setPadding(0, dp(12), 0, dp(16));
-        LinearLayout legendRow1 = new LinearLayout(this);
-        legendRow1.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout legendRow2 = new LinearLayout(this);
-        legendRow2.setOrientation(LinearLayout.HORIZONTAL);
-        legendRow2.setPadding(0, dp(6), 0, 0);
-        addLegend(legendRow1, C_DONE_BG, "Done");
-        addLegend(legendRow1, C_TODAY_BG, "Today");
-        addLegend(legendRow1, C_MISS_BG, "Missed");
-        addLegend(legendRow2, C_FROZEN_BG, "❄ Frozen");
-        legendWrap.addView(legendRow1);
-        legendWrap.addView(legendRow2);
-        root.addView(legendWrap);
+        // Legend — single compact row (LinearLayout.HORIZONTAL never wraps,
+        // and the items are sized to fit one line without truncation).
+        LinearLayout legend = new LinearLayout(this);
+        legend.setOrientation(LinearLayout.HORIZONTAL);
+        legend.setPadding(0, dp(12), 0, dp(16));
+        addLegend(legend, C_DONE_BG, "Done");
+        addLegend(legend, C_TODAY_BG, "Today");
+        addLegend(legend, C_MISS_BG, "Missed");
+        addLegend(legend, C_FROZEN_BG, "❄ Frozen");
+        root.addView(legend);
 
         // Edit + Delete buttons — modern pill row (two side-by-side buttons
         // with rounded corners instead of full-width blocks)
@@ -509,7 +504,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         TextView dot = new TextView(this);
         dot.setText("  ");
         dot.setBackgroundColor(color);
-        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dp(14), dp(14));
+        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dp(12), dp(12));
         dotLp.setMarginEnd(dp(4));
         dot.setLayoutParams(dotLp);
         legend.addView(dot);
@@ -517,9 +512,9 @@ public class HabitDetailActivity extends AppCompatActivity {
         TextView text = new TextView(this);
         text.setText(label);
         text.setTextColor(C_MUTED);
-        text.setTextSize(11);
+        text.setTextSize(10);
         LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        tLp.setMarginEnd(dp(12));
+        tLp.setMarginEnd(dp(8));
         text.setLayoutParams(tLp);
         legend.addView(text);
     }
