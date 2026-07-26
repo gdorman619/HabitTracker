@@ -3,8 +3,10 @@ package com.hermes.habittracker;
 import android.content.Context;
 import android.content.SharedPreferences;
 import org.json.JSONArray;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class HabitStorage {
     private static final String PREFS = "habit_storage";
@@ -124,10 +126,22 @@ public class HabitStorage {
         return h.freezesUsed == 0 && canUseFreeze();
     }
 
-    // Apply freeze to a specific habit
+    // Apply freeze to a specific habit — finds the first missed day after creation and marks it frozen
     public boolean freezeHabit(Habit h) {
         if (!canFreezeHabit(h)) return false;
         h.freezesUsed = 1;
+        // Find the most recent missed day (between createdAt and today) and mark it frozen
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        long now = System.currentTimeMillis();
+        long day = 86400000L;
+        for (int i = 1; i <= 365; i++) {
+            String dateStr = sdf.format(new java.util.Date(now - i * day));
+            if (h.createdAt != null && dateStr.compareTo(h.createdAt) < 0) break;
+            if (!h.completedDates.contains(dateStr) && !h.frozenDates.contains(dateStr)) {
+                h.frozenDates.add(dateStr);
+                break;
+            }
+        }
         updateHabit(h);
         useFreeze();
         return true;
@@ -164,6 +178,7 @@ public class HabitStorage {
             h3.completedDates.add(sdf.format(new java.util.Date(now - i * day)));
         }
         h3.freezesUsed = 1;
+        h3.frozenDates.add(sdf.format(new java.util.Date(now - 3 * day)));
         habits.add(h3);
 
         // Habit 4: "Meditate" - just started, 2 day streak

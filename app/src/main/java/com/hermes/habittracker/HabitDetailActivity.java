@@ -19,6 +19,27 @@ public class HabitDetailActivity extends AppCompatActivity {
 
     private HabitStorage storage;
     private Habit habit;
+    private Calendar viewMonth = Calendar.getInstance();
+    private LinearLayout calendarContainer;
+
+    // Colors
+    private static final int C_BG = 0xff0f1419;
+    private static final int C_CARD = 0xff1a212b;
+    private static final int C_ACCENT = 0xff4cc2ff;
+    private static final int C_TEXT = 0xffe6edf3;
+    private static final int C_MUTED = 0xff9aa7b4;
+    private static final int C_DONE_BG = 0xff2ea043;
+    private static final int C_DONE_FG = 0xfff0f6fc;
+    private static final int C_TODAY_BG = 0xff1a4a6e;
+    private static final int C_TODAY_FG = 0xff4cc2ff;
+    private static final int C_MISS_BG = 0xff3d2417;
+    private static final int C_MISS_FG = 0xffdb6d28;
+    private static final int C_FROZEN_BG = 0xff1a3850;
+    private static final int C_FROZEN_FG = 0xff7dd3fc;
+    private static final int C_NA_BG = 0xff11181f;
+    private static final int C_NA_FG = 0x449aa7b4;
+    private static final int C_BORDER = 0xff2a3441;
+    private static final int C_RED = 0xfff85149;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,7 +51,14 @@ public class HabitDetailActivity extends AppCompatActivity {
         reloadHabit(habitId);
         if (habit == null) { finish(); return; }
 
+        viewMonth.set(Calendar.DAY_OF_MONTH, 1);
         buildUI();
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
     }
 
     private void reloadHabit(int habitId) {
@@ -40,138 +68,228 @@ public class HabitDetailActivity extends AppCompatActivity {
         }
     }
 
-    private void buildUI() {
-        int dp = (int) getResources().getDisplayMetrics().density;
-        int pad = 20 * dp;
-        int padSm = 12 * dp;
+    private int dp(int v) { return (int)(v * getResources().getDisplayMetrics().density); }
 
+    private void buildUI() {
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xff0f1419);
-        root.setPadding(pad, pad + 32 * dp, pad, pad);
+        root.setBackgroundColor(C_BG);
+        int pad = dp(20);
+        root.setPadding(pad, dp(48), pad, pad);
 
-        // Header: emoji + name
+        // Header
         TextView header = new TextView(this);
         header.setText(habit.emoji + "  " + habit.name);
         header.setTextSize(24);
-        header.setTextColor(0xff4cc2ff);
+        header.setTextColor(C_ACCENT);
         header.setTypeface(header.getTypeface(), android.graphics.Typeface.BOLD);
-        header.setPadding(0, 0, 0, padSm);
+        header.setPadding(0, 0, 0, dp(8));
         root.addView(header);
 
-        // Streak info
-        int streak = habit.getStreak();
-        TextView streakText = new TextView(this);
-        streakText.setText(streak > 0 ? "\uD83D\uDD25 " + streak + " day streak" : "No current streak");
-        streakText.setTextSize(16);
-        streakText.setTextColor(streak > 0 ? 0xffd29922 : 0xff9aa7b4);
-        streakText.setPadding(0, 0, 0, padSm);
-        root.addView(streakText);
+        // Streak + total row
+        LinearLayout statsRow = new LinearLayout(this);
+        statsRow.setOrientation(LinearLayout.HORIZONTAL);
+        statsRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        // Total completions
-        TextView totalText = new TextView(this);
-        totalText.setText("Total: " + habit.completedDates.size() + " completions");
-        totalText.setTextSize(14);
-        totalText.setTextColor(0xff9aa7b4);
-        totalText.setPadding(0, 0, 0, pad);
-        root.addView(totalText);
+        int streak = habit.getStreak();
+        TextView streakTv = new TextView(this);
+        streakTv.setText(streak > 0 ? "\uD83D\uDD25 " + streak + " day streak" : "No current streak");
+        streakTv.setTextSize(15);
+        streakTv.setTextColor(streak > 0 ? 0xffd29922 : C_MUTED);
+        statsRow.addView(streakTv);
+
+        TextView sep = new TextView(this);
+        sep.setText("  \u2022  ");
+        sep.setTextColor(C_MUTED);
+        sep.setTextSize(15);
+        statsRow.addView(sep);
+
+        TextView totalTv = new TextView(this);
+        totalTv.setText(habit.completedDates.size() + " total");
+        totalTv.setTextSize(15);
+        totalTv.setTextColor(C_MUTED);
+        statsRow.addView(totalTv);
+
+        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        sLp.bottomMargin = dp(4);
+        statsRow.setLayoutParams(sLp);
+        root.addView(statsRow);
+
+        // Started badge — pill style
+        if (habit.createdAt != null) {
+            TextView startedPill = new TextView(this);
+            startedPill.setText("  Started " + habit.createdAt + "  ");
+            startedPill.setTextSize(12);
+            startedPill.setTextColor(C_MUTED);
+            startedPill.setBackgroundColor(0xff11181f);
+            LinearLayout.LayoutParams pLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            pLp.bottomMargin = dp(16);
+            startedPill.setLayoutParams(pLp);
+            startedPill.setPadding(dp(12), dp(6), dp(12), dp(6));
+            root.addView(startedPill);
+        }
 
         // Freeze section
-        LinearLayout freezeSection = new LinearLayout(this);
-        freezeSection.setOrientation(LinearLayout.VERTICAL);
-        freezeSection.setBackgroundColor(0xff1a212b);
-        freezeSection.setPadding(padSm, padSm, padSm, padSm);
-        LinearLayout.LayoutParams freezeLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        freezeLp.bottomMargin = pad;
-        freezeSection.setLayoutParams(freezeLp);
+        addFreezeSection(root);
 
+        // Month navigation header
+        LinearLayout monthHeader = new LinearLayout(this);
+        monthHeader.setOrientation(LinearLayout.HORIZONTAL);
+        monthHeader.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams mhLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        mhLp.bottomMargin = dp(12);
+        monthHeader.setLayoutParams(mhLp);
+
+        TextView prevBtn = new TextView(this);
+        prevBtn.setText("  \u2039  ");
+        prevBtn.setTextSize(22);
+        prevBtn.setTextColor(C_ACCENT);
+        prevBtn.setGravity(Gravity.CENTER);
+        prevBtn.setOnClickListener(v -> { viewMonth.add(Calendar.MONTH, -1); rebuildCalendar(); });
+
+        TextView monthLabel = new TextView(this);
+        monthLabel.setId(android.R.id.text1);
+        monthLabel.setGravity(Gravity.CENTER);
+        monthLabel.setTextSize(17);
+        monthLabel.setTextColor(C_TEXT);
+        monthLabel.setTypeface(monthLabel.getTypeface(), android.graphics.Typeface.BOLD);
+        LinearLayout.LayoutParams mlLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        mlLp.gravity = Gravity.CENTER;
+        monthLabel.setLayoutParams(mlLp);
+
+        TextView nextBtn = new TextView(this);
+        nextBtn.setText("  \u203A  ");
+        nextBtn.setTextSize(22);
+        nextBtn.setTextColor(C_ACCENT);
+        nextBtn.setGravity(Gravity.CENTER);
+        nextBtn.setOnClickListener(v -> { viewMonth.add(Calendar.MONTH, 1); rebuildCalendar(); });
+
+        monthHeader.addView(prevBtn);
+        monthHeader.addView(monthLabel);
+        monthHeader.addView(nextBtn);
+        root.addView(monthHeader);
+
+        // Calendar container (rebuilt on month change)
+        calendarContainer = new LinearLayout(this);
+        calendarContainer.setOrientation(LinearLayout.VERTICAL);
+        root.addView(calendarContainer);
+        rebuildCalendar();
+
+        // Legend
+        LinearLayout legend = new LinearLayout(this);
+        legend.setOrientation(LinearLayout.HORIZONTAL);
+        legend.setPadding(0, dp(12), 0, dp(16));
+        addLegend(legend, C_DONE_BG, "Done");
+        addLegend(legend, C_TODAY_BG, "Today");
+        addLegend(legend, C_MISS_BG, "Missed");
+        addLegend(legend, C_FROZEN_BG, "\u2744 Frozen");
+        addLegend(legend, C_NA_BG, "N/A");
+        root.addView(legend);
+
+        // Edit + Delete buttons
+        addButton(root, "  Edit Habit  ", C_ACCENT, C_BG, v -> showEditDialog());
+        addButton(root, "  Delete Habit  ", C_RED, 0, v -> {
+            new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
+                .setTitle("Delete habit?")
+                .setMessage(habit.name)
+                .setPositiveButton("Delete", (d, w) -> { storage.deleteHabit(habit.id); finish(); })
+                .setNegativeButton("Cancel", null)
+                .show();
+        });
+
+        scroll.addView(root);
+        setContentView(scroll);
+    }
+
+    private void addButton(LinearLayout root, String text, int bg, int fg, View.OnClickListener listener) {
+        TextView btn = new TextView(this);
+        btn.setText(text);
+        btn.setTextSize(15);
+        btn.setTextColor(fg == 0 ? C_RED : fg);
+        btn.setBackgroundColor(bg);
+        btn.setGravity(Gravity.CENTER);
+        btn.setPadding(dp(12), dp(12), dp(12), dp(12));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(8);
+        btn.setLayoutParams(lp);
+        btn.setOnClickListener(listener);
+        root.addView(btn);
+    }
+
+    private void addFreezeSection(LinearLayout root) {
+        boolean alreadyFrozen = habit.freezesUsed > 0;
         int remaining = storage.getFreezesRemaining();
         int max = storage.getMaxFreezes();
         boolean canFreeze = storage.canFreezeHabit(habit);
-        boolean alreadyFrozen = habit.freezesUsed > 0;
+
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setBackgroundColor(C_CARD);
+        section.setPadding(dp(12), dp(12), dp(12), dp(12));
+        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        sLp.bottomMargin = dp(16);
+        section.setLayoutParams(sLp);
 
         TextView freezeText = new TextView(this);
         if (alreadyFrozen) {
             freezeText.setText("\u2744\uFE0F Freeze active on this habit");
         } else {
-            freezeText.setText("\u2744\uFE0F Streak Freezes: " + remaining + "/" + max + " remaining this month");
+            freezeText.setText("\u2744\uFE0F Streak Freezes: " + remaining + "/" + max + " remaining");
         }
         freezeText.setTextSize(14);
-        freezeText.setTextColor(0xff9aa7b4);
-        freezeSection.addView(freezeText);
+        freezeText.setTextColor(C_MUTED);
+        section.addView(freezeText);
 
-        TextView freezeDesc = new TextView(this);
-        if (alreadyFrozen) {
-            freezeDesc.setText("Your streak is protected from 1 missed day.");
-        } else {
-            freezeDesc.setText("Freezes protect your streak when you miss a day.");
-        }
-        freezeDesc.setTextSize(12);
-        freezeDesc.setTextColor(0x889aa7b4);
-        LinearLayout.LayoutParams fdLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        fdLp.topMargin = 4 * dp;
-        freezeDesc.setLayoutParams(fdLp);
-        freezeSection.addView(freezeDesc);
+        TextView desc = new TextView(this);
+        desc.setText(alreadyFrozen ? "Your streak is protected from 1 missed day." : "Freezes protect your streak when you miss a day.");
+        desc.setTextSize(12);
+        desc.setTextColor(0x889aa7b4);
+        LinearLayout.LayoutParams dLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        dLp.topMargin = dp(4);
+        desc.setLayoutParams(dLp);
+        section.addView(desc);
 
-        // Freeze button
-        TextView freezeBtn = new TextView(this);
+        TextView btn = new TextView(this);
         if (alreadyFrozen) {
-            freezeBtn.setText("  Already Frozen  ");
-            freezeBtn.setTextColor(0xff9aa7b4);
-            freezeBtn.setBackgroundColor(0xff2a3441);
+            btn.setText("  \u2744 Already Frozen  ");
+            btn.setTextColor(C_MUTED);
+            btn.setBackgroundColor(C_BORDER);
         } else if (canFreeze) {
-            freezeBtn.setText("  Use Freeze  ");
-            freezeBtn.setTextColor(0xff0f1419);
-            freezeBtn.setBackgroundColor(0xff4cc2ff);
+            btn.setText("  \u2744 Use Freeze  ");
+            btn.setTextColor(C_BG);
+            btn.setBackgroundColor(C_ACCENT);
         } else {
-            freezeBtn.setText(remaining > 0 ? "  Already Used Freeze  " : "  No Freezes Left  ");
-            freezeBtn.setTextColor(0xff9aa7b4);
-            freezeBtn.setBackgroundColor(0xff2a3441);
+            btn.setText(remaining > 0 ? "  Already Used  " : "  No Freezes Left  ");
+            btn.setTextColor(C_MUTED);
+            btn.setBackgroundColor(C_BORDER);
         }
-        freezeBtn.setTextSize(14);
-        freezeBtn.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams fbLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        fbLp.topMargin = padSm;
-        freezeBtn.setLayoutParams(fbLp);
+        btn.setTextSize(14);
+        btn.setGravity(Gravity.CENTER);
+        btn.setPadding(dp(12), dp(10), dp(12), dp(10));
+        LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        bLp.topMargin = dp(10);
+        btn.setLayoutParams(bLp);
         if (canFreeze) {
-            freezeBtn.setOnClickListener(v -> {
+            btn.setOnClickListener(v -> {
                 if (storage.freezeHabit(habit)) {
-                    Toast.makeText(this, "\u2744\uFE0F Freeze applied! Your streak is protected.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "\u2744\uFE0F Freeze applied!", Toast.LENGTH_SHORT).show();
                     recreate();
-                } else {
-                    Toast.makeText(this, "Could not apply freeze.", Toast.LENGTH_SHORT).show();
                 }
             });
         }
-        freezeSection.addView(freezeBtn);
-        root.addView(freezeSection);
+        section.addView(btn);
+        root.addView(section);
+    }
 
-        // History label + started date
-        TextView historyLabel = new TextView(this);
-        String startedStr = habit.createdAt != null ? habit.createdAt : "N/A";
-        historyLabel.setText("History  (started " + startedStr + ")");
-        historyLabel.setTextSize(18);
-        historyLabel.setTextColor(0xffcdd9e5);
-        historyLabel.setTypeface(historyLabel.getTypeface(), android.graphics.Typeface.BOLD);
-        historyLabel.setPadding(0, 0, 0, padSm);
-        root.addView(historyLabel);
+    private void rebuildCalendar() {
+        calendarContainer.removeAllViews();
+        TextView monthLabel = findViewById(android.R.id.text1);
+        SimpleDateFormat monthFmt = new SimpleDateFormat("MMMM yyyy", Locale.US);
+        monthLabel.setText(monthFmt.format(viewMonth.getTime()));
 
-        // Calendar: last 4 weeks (28 days) + today = 5 rows x 7
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        LinearLayout calendar = new LinearLayout(this);
-        calendar.setOrientation(LinearLayout.VERTICAL);
-
-        // Start from 4 weeks ago, aligned to Sunday
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        cal.add(Calendar.DAY_OF_YEAR, -28);
-        while (cal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
-            cal.add(Calendar.DAY_OF_YEAR, -1);
-        }
+        String todayStr = sdf.format(new Date());
 
         // Day labels
         String[] dayLabels = {"S", "M", "T", "W", "T", "F", "S"};
@@ -180,134 +298,97 @@ public class HabitDetailActivity extends AppCompatActivity {
         for (int d = 0; d < 7; d++) {
             TextView lbl = new TextView(this);
             lbl.setText(dayLabels[d]);
-            lbl.setTextColor(0xff9aa7b4);
+            lbl.setTextColor(C_MUTED);
             lbl.setTextSize(11);
             lbl.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            lbl.setLayoutParams(lp);
+            lbl.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             labelRow.addView(lbl);
         }
-        calendar.addView(labelRow);
+        calendarContainer.addView(labelRow);
 
-        String todayStr = sdf.format(new Date());
+        // Build calendar for viewMonth
+        Calendar cal = (Calendar) viewMonth.clone();
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        int firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) - 1; // Sunday = 0
+        int daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
 
-        for (int row = 0; row < 5; row++) {
-            LinearLayout weekRow = new LinearLayout(this);
-            weekRow.setOrientation(LinearLayout.HORIZONTAL);
-            weekRow.setPadding(0, 3 * dp, 0, 3 * dp);
+        // Leading empty cells
+        int totalCells = ((firstDayOfWeek + daysInMonth + 6) / 7) * 7;
+        int cellSize = dp(38);
+        int margin = dp(2);
 
-            for (int col = 0; col < 7; col++) {
+        for (int i = 0; i < totalCells; i++) {
+            if (i % 7 == 0) {
+                LinearLayout weekRow = new LinearLayout(this);
+                weekRow.setOrientation(LinearLayout.HORIZONTAL);
+                weekRow.setPadding(0, margin, 0, margin);
+                weekRow.setTag("week" + (i / 7));
+                calendarContainer.addView(weekRow);
+            }
+            LinearLayout weekRow = (LinearLayout) calendarContainer.getChildAt(calendarContainer.getChildCount() - 1);
+
+            int dayNum = i - firstDayOfWeek + 1;
+            TextView day = new TextView(this);
+
+            if (dayNum < 1 || dayNum > daysInMonth) {
+                day.setText("");
+                day.setBackgroundColor(0x00000000);
+            } else {
+                cal.set(Calendar.DAY_OF_MONTH, dayNum);
                 String dateStr = sdf.format(cal.getTime());
                 boolean completed = habit.completedDates.contains(dateStr);
+                boolean frozen = habit.frozenDates.contains(dateStr);
                 boolean isToday = dateStr.equals(todayStr);
-                boolean isFuture = cal.getTimeInMillis() > System.currentTimeMillis() + 86400000 / 2;
+                boolean isFuture = cal.getTimeInMillis() > System.currentTimeMillis() + 43200000;
+                boolean beforeStart = habit.createdAt != null && dateStr.compareTo(habit.createdAt) < 0;
 
-                TextView day = new TextView(this);
-                day.setText(String.valueOf(cal.get(Calendar.DAY_OF_MONTH)));
+                day.setText(String.valueOf(dayNum));
                 day.setTextSize(13);
                 day.setGravity(Gravity.CENTER);
 
-                int cellSize = 38 * dp;
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, cellSize, 1);
-                lp.setMargins(2, 2, 2, 2);
-                day.setLayoutParams(lp);
-
-                if (isFuture) {
-                    day.setTextColor(0x339aa7b4);
-                } else if (isToday) {
-                    // Today always shows as blue, even if completed
-                    day.setTextColor(0xff4cc2ff);
-                    day.setBackgroundColor(0x334cc2ff);
+                if (isToday) {
+                    day.setTextColor(C_TODAY_FG);
+                    day.setBackgroundColor(C_TODAY_BG);
                     day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
                 } else if (completed) {
-                    day.setTextColor(0xff0f1419);
-                    day.setBackgroundColor(0xff3fb950);
-                } else if (habit.createdAt != null && dateStr.compareTo(habit.createdAt) < 0) {
-                    // Before habit was created — neutral, not missed
-                    day.setTextColor(0x229aa7b4);
-                    day.setBackgroundColor(0x08ffffff);
+                    day.setTextColor(C_DONE_FG);
+                    day.setBackgroundColor(C_DONE_BG);
+                } else if (frozen) {
+                    day.setTextColor(C_FROZEN_FG);
+                    day.setBackgroundColor(C_FROZEN_BG);
+                    day.setText("\u2744");
+                } else if (isFuture || beforeStart) {
+                    day.setTextColor(C_NA_FG);
+                    day.setBackgroundColor(C_NA_BG);
                 } else {
-                    // After creation, not completed — missed
-                    day.setTextColor(0xffd29922);
-                    day.setBackgroundColor(0x33d29922);
+                    day.setTextColor(C_MISS_FG);
+                    day.setBackgroundColor(C_MISS_BG);
                 }
-
-                weekRow.addView(day);
-                cal.add(Calendar.DAY_OF_YEAR, 1);
             }
-            calendar.addView(weekRow);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, cellSize, 1);
+            lp.setMargins(margin, margin, margin, margin);
+            day.setLayoutParams(lp);
+            weekRow.addView(day);
         }
-        root.addView(calendar);
-
-        // Legend
-        LinearLayout legend = new LinearLayout(this);
-        legend.setOrientation(LinearLayout.HORIZONTAL);
-        legend.setPadding(0, padSm, 0, 0);
-
-        addLegendDot(legend, 0xff3fb950, "Done");
-        addLegendDot(legend, 0x334cc2ff, "Today");
-        addLegendDot(legend, 0x33d29922, "Missed");
-        addLegendDot(legend, 0x08ffffff, "N/A");
-        root.addView(legend);
-
-        // Edit button
-        TextView editBtn = new TextView(this);
-        editBtn.setText("  Edit Habit  ");
-        editBtn.setTextSize(15);
-        editBtn.setTextColor(0xff0f1419);
-        editBtn.setBackgroundColor(0xff4cc2ff);
-        editBtn.setGravity(Gravity.CENTER);
-        editBtn.setPadding(padSm, padSm, padSm, padSm);
-        LinearLayout.LayoutParams editLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        editLp.topMargin = pad;
-        editBtn.setLayoutParams(editLp);
-        editBtn.setOnClickListener(v -> showEditDialog());
-        root.addView(editBtn);
-
-        // Delete button
-        TextView delBtn = new TextView(this);
-        delBtn.setText("  Delete Habit  ");
-        delBtn.setTextSize(15);
-        delBtn.setTextColor(0xfff85149);
-        delBtn.setGravity(Gravity.CENTER);
-        delBtn.setPadding(padSm, padSm, padSm, padSm);
-        LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        delLp.topMargin = padSm;
-        delBtn.setLayoutParams(delLp);
-        delBtn.setOnClickListener(v -> {
-            new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
-                .setTitle("Delete habit?")
-                .setMessage(habit.name)
-                .setPositiveButton("Delete", (d, w) -> {
-                    storage.deleteHabit(habit.id);
-                    finish();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-        });
-        root.addView(delBtn);
-
-        scroll.addView(root);
-        setContentView(scroll);
     }
 
-    private void addLegendDot(LinearLayout legend, int color, String label) {
-        int dp = (int) getResources().getDisplayMetrics().density;
+    private void addLegend(LinearLayout legend, int color, String label) {
         TextView dot = new TextView(this);
         dot.setText("  ");
         dot.setBackgroundColor(color);
-        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(16 * dp, 16 * dp);
-        dotLp.setMargins(0, 0, 4 * dp, 0);
+        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dp(14), dp(14));
+        dotLp.setMarginEnd(dp(4));
         dot.setLayoutParams(dotLp);
         legend.addView(dot);
 
         TextView text = new TextView(this);
         text.setText(label);
-        text.setTextColor(0xff9aa7b4);
-        text.setTextSize(12);
-        LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        textLp.setMarginEnd(16 * dp);
-        text.setLayoutParams(textLp);
+        text.setTextColor(C_MUTED);
+        text.setTextSize(11);
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tLp.setMarginEnd(dp(12));
+        text.setLayoutParams(tLp);
         legend.addView(text);
     }
 
@@ -323,22 +404,22 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         LinearLayout dialogLayout = new LinearLayout(this);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
-        dialogLayout.setPadding(60, 40, 60, 20);
+        dialogLayout.setPadding(dp(40), dp(30), dp(40), dp(15));
 
         android.widget.EditText input = new android.widget.EditText(this);
         input.setText(habit.name);
-        input.setTextColor(0xffe6edf3);
+        input.setTextColor(C_TEXT);
         input.setTextSize(16);
         input.setHint("Habit name");
-        input.setHintTextColor(0xff9aa7b4);
+        input.setHintTextColor(C_MUTED);
         dialogLayout.addView(input);
 
         TextView emojiLabel = new TextView(this);
         emojiLabel.setText("Pick an emoji:");
-        emojiLabel.setTextColor(0xff9aa7b4);
+        emojiLabel.setTextColor(C_MUTED);
         emojiLabel.setTextSize(14);
         LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lblLp.topMargin = 30;
+        lblLp.topMargin = dp(20);
         emojiLabel.setLayoutParams(lblLp);
         dialogLayout.addView(emojiLabel);
 
@@ -351,7 +432,7 @@ public class HabitDetailActivity extends AppCompatActivity {
             TextView tv = new TextView(this);
             tv.setText(emojis[i]);
             tv.setTextSize(28);
-            tv.setPadding(16, 16, 16, 16);
+            tv.setPadding(dp(16), dp(16), dp(16), dp(16));
             tv.setAlpha(i == selectedIdx[0] ? 1f : 0.4f);
             final int idx = i;
             tv.setOnClickListener(v -> {
@@ -365,7 +446,7 @@ public class HabitDetailActivity extends AppCompatActivity {
         }
 
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowLp.topMargin = 20;
+        rowLp.topMargin = dp(15);
         emojiRow.setLayoutParams(rowLp);
         dialogLayout.addView(emojiRow);
 
