@@ -81,8 +81,18 @@ public class Habit {
         try {
             JSONObject obj = new JSONObject(json);
             Habit h = new Habit(obj.getInt("id"), obj.getString("name"), obj.optString("emoji", "\u2705"));
-            h.createdAt = obj.optString("createdAt", h.createdAt);
-            JSONArray dates = obj.getJSONArray("dates");
+            h.createdAt = obj.optString("createdAt", null);
+            // If no createdAt stored, use the earliest completed date as fallback
+            if (h.createdAt == null || h.createdAt.isEmpty()) {
+                JSONArray dates = obj.getJSONArray("dates");
+                for (int i = 0; i < dates.length(); i++) {
+                    String d = dates.getString(i);
+                    if (h.createdAt == null || d.compareTo(h.createdAt) < 0) {
+                        h.createdAt = d;
+                    }
+                }
+                if (h.createdAt == null) h.createdAt = new SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+            }
             for (int i = 0; i < dates.length(); i++) h.completedDates.add(dates.getString(i));
             h.freezesUsed = obj.optInt("freezesUsed", 0);
             return h;

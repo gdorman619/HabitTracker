@@ -214,13 +214,14 @@ public class HabitDetailActivity extends AppCompatActivity {
 
                 if (isFuture) {
                     day.setTextColor(0x339aa7b4);
-                } else if (completed) {
-                    day.setTextColor(0xff0f1419);
-                    day.setBackgroundColor(0xff3fb950);
                 } else if (isToday) {
+                    // Today always shows as blue, even if completed
                     day.setTextColor(0xff4cc2ff);
                     day.setBackgroundColor(0x334cc2ff);
                     day.setTypeface(day.getTypeface(), android.graphics.Typeface.BOLD);
+                } else if (completed) {
+                    day.setTextColor(0xff0f1419);
+                    day.setBackgroundColor(0xff3fb950);
                 } else if (habit.createdAt != null && dateStr.compareTo(habit.createdAt) < 0) {
                     // Before habit was created — neutral, not missed
                     day.setTextColor(0x229aa7b4);
