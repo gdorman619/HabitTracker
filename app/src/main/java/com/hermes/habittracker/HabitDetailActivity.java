@@ -140,10 +140,11 @@ public class HabitDetailActivity extends AppCompatActivity {
         statsRow.setLayoutParams(sLp);
         root.addView(statsRow);
 
-        // Started badge — pill style
+        // Created badge — pill style (a habit can be created without being
+        // done that same day, so "Created" is more accurate than "Started")
         if (habit.createdAt != null) {
             TextView startedPill = new TextView(this);
-            startedPill.setText("  Started " + habit.createdAt + "  ");
+            startedPill.setText("  Created " + habit.createdAt + "  ");
             startedPill.setTextSize(12);
             startedPill.setTextColor(C_MUTED);
             startedPill.setBackgroundColor(0xff11181f);
@@ -215,14 +216,20 @@ public class HabitDetailActivity extends AppCompatActivity {
         addLegend(legendRow1, C_TODAY_BG, "Today");
         addLegend(legendRow1, C_MISS_BG, "Missed");
         addLegend(legendRow2, C_FROZEN_BG, "❄ Frozen");
-        addLegend(legendRow2, C_NA_BG, "N/A");
         legendWrap.addView(legendRow1);
         legendWrap.addView(legendRow2);
         root.addView(legendWrap);
 
-        // Edit + Delete buttons
-        addButton(root, "  Edit Habit  ", C_ACCENT, C_BG, v -> showEditDialog());
-        addButton(root, "  Delete Habit  ", C_RED, C_TEXT, v -> {
+        // Edit + Delete buttons — modern pill row (two side-by-side buttons
+        // with rounded corners instead of full-width blocks)
+        LinearLayout actionRow = new LinearLayout(this);
+        actionRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams arLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        arLp.topMargin = dp(8);
+        actionRow.setLayoutParams(arLp);
+
+        TextView editBtn = makePillButton("Edit", C_ACCENT, C_ACCENT, v -> showEditDialog());
+        TextView delBtn = makePillButton("Delete", C_RED, C_TEXT, v -> {
             new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
                 .setTitle("Delete habit?")
                 .setMessage(habit.name)
@@ -230,9 +237,43 @@ public class HabitDetailActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .show();
         });
+        // Delete reads as destructive: solid red fill, light text
+        android.graphics.drawable.GradientDrawable delBg = new android.graphics.drawable.GradientDrawable();
+        delBg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        delBg.setCornerRadius(dp(12));
+        delBg.setColor(C_RED);
+        delBtn.setBackground(delBg);
+        LinearLayout.LayoutParams ebLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        ebLp.setMarginEnd(dp(8));
+        editBtn.setLayoutParams(ebLp);
+        LinearLayout.LayoutParams dbLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        delBtn.setLayoutParams(dbLp);
+        actionRow.addView(editBtn);
+        actionRow.addView(delBtn);
+        root.addView(actionRow);
 
         scroll.addView(root);
         setContentView(scroll);
+    }
+
+    // Modern pill button: rounded corners, centered label, colored outline/box.
+    private TextView makePillButton(String text, int borderColor, int textColor, View.OnClickListener listener) {
+        TextView btn = new TextView(this);
+        btn.setText(text);
+        btn.setTextSize(15);
+        btn.setTypeface(btn.getTypeface(), android.graphics.Typeface.BOLD);
+        btn.setTextColor(textColor);
+        btn.setGravity(Gravity.CENTER);
+        btn.setPadding(dp(12), dp(14), dp(12), dp(14));
+        // Rounded outline using a drawable background
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+        d.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        d.setCornerRadius(dp(12));
+        d.setColor(0x00000000);                 // transparent fill
+        d.setStroke(dp(1), borderColor);        // colored border
+        btn.setBackground(d);
+        btn.setOnClickListener(listener);
+        return btn;
     }
 
     private void addButton(LinearLayout root, String text, int bg, int fg, View.OnClickListener listener) {
