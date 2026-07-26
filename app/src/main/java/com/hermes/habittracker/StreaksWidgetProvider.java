@@ -101,9 +101,11 @@ public class StreaksWidgetProvider extends AppWidgetProvider {
                 }
             }
 
+            // Tap anywhere on the widget (header, empty state, root) opens the app
             Intent openIntent = new Intent(context, MainActivity.class);
             PendingIntent openPi = PendingIntent.getActivity(context, 1000 + id, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.widgetRoot, openPi);
             views.setOnClickPendingIntent(R.id.widgetCount, openPi);
             views.setOnClickPendingIntent(R.id.widgetEmpty, openPi);
 
