@@ -519,14 +519,14 @@ public class HabitDetailActivity extends AppCompatActivity {
         text.setTextColor(C_MUTED);
         text.setTextSize(10);
         text.setSingleLine(true);              // keep each label on one line
-        text.setIncludeFontPadding(false);     // removes extra bottom padding that clips glyphs
+        text.setGravity(Gravity.CENTER_VERTICAL);
         text.setEllipsize(android.text.TextUtils.TruncateAt.END);
         // Equal-width quarter columns: guarantees all four words fit on one
         // row without clipping (the longest word "Frozen" gets its own column).
-        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        // Use a fixed height with vertical centering and KEEP font padding so
+        // glyphs (descenders on Samsung fonts) are never clipped.
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, dp(18), 1);
         tLp.setMarginEnd(dp(6));
-        tLp.topMargin = dp(2);
-        tLp.bottomMargin = dp(2);               // breathing room so descenders aren't cut
         text.setLayoutParams(tLp);
         legend.addView(text);
     }
