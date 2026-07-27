@@ -353,13 +353,12 @@ public class MainActivity extends AppCompatActivity {
     private void showHabitMenu(final int pos) {
         if (pos < 0 || pos >= habits.size()) return;
         final int habitId = habits.get(pos).id;
+        final Habit target = habits.stream().filter(h -> h.id == habitId).findFirst().orElse(null);
+        if (target == null) return;
         String[] options = {"View History", "Edit Habit", "Delete Habit"};
         new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
-            .setTitle(habits.get(pos).emoji + " " + habits.get(pos).name)
+            .setTitle(target.emoji + " " + target.name)
             .setItems(options, (d, which) -> {
-                Habit target = null;
-                for (Habit h : habits) if (h.id == habitId) { target = h; break; }
-                if (target == null) return;
                 switch (which) {
                     case 0: // View History
                         Intent intent = new Intent(this, HabitDetailActivity.class);
@@ -377,6 +376,7 @@ public class MainActivity extends AppCompatActivity {
                             .setMessage(target.name)
                             .setPositiveButton("Delete", (d2, w) -> {
                                 storage.deleteHabit(habitId);
+                                ReminderScheduler.cancel(MainActivity.this, target);
                                 habits.removeIf(h -> h.id == habitId);
                                 sortHabits();
                                 adapter.update(habits);
@@ -410,7 +410,23 @@ public class MainActivity extends AppCompatActivity {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_habit, null);
         EditText input = dialogView.findViewById(R.id.habitInput);
         LinearLayout emojiRow = dialogView.findViewById(R.id.emojiRow);
+        android.widget.Switch reminderSwitch = dialogView.findViewById(R.id.reminderSwitch);
+        TextView reminderTime = dialogView.findViewById(R.id.reminderTime);
         selectedEmojiIdx = 0;
+        // Reminder defaults: off, 9:00 AM. Enabling the switch reveals the time row.
+        final int[] picked = {9, 0};
+        reminderTime.setText(formatTime(picked[0], picked[1]));
+        reminderSwitch.setOnCheckedChangeListener((v, checked) ->
+                reminderTime.setVisibility(checked ? View.VISIBLE : View.GONE));
+        reminderTime.setOnClickListener(v -> {
+            android.app.TimePickerDialog tpd = new android.app.TimePickerDialog(this,
+                    com.google.android.material.R.style.ThemeOverlay_Material3_Dark,
+                    (view, hour, minute) -> {
+                        picked[0] = hour; picked[1] = minute;
+                        reminderTime.setText(formatTime(hour, minute));
+                    }, picked[0], picked[1], false);
+            tpd.show();
+        });
 
         TextView[] emojiViews = new TextView[emojis.length];
         for (int i = 0; i < emojis.length; i++) {
@@ -439,8 +455,12 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 Habit h = new Habit(storage.getNextId(), name, emojis[selectedEmojiIdx]);
+                h.reminderEnabled = reminderSwitch.isChecked();
+                h.reminderHour = picked[0];
+                h.reminderMinute = picked[1];
                 storage.addHabit(h);
                 habits.add(h);
+                if (h.reminderEnabled) requestNotifyPermissionThenSchedule(h);
                 sortHabits();
                 adapter.update(habits);
                 updateCount();
@@ -452,11 +472,51 @@ public class MainActivity extends AppCompatActivity {
             .show();
     }
 
+    /** Format 24h -> 12h clock label, e.g. 9,0 -> "9:00 AM". */
+    private String formatTime(int hh, int mm) {
+        String ampm = hh < 12 ? "AM" : "PM";
+        int h12 = hh % 12; if (h12 == 0) h12 = 12;
+        return h12 + ":" + (mm < 10 ? "0" + mm : mm) + " " + ampm;
+    }
+
+    /**
+     * Request the notification permission (Android 13+) if needed, then schedule the
+     * reminder. On older Android the permission isn't required, so we schedule directly.
+     */
+    private void requestNotifyPermissionThenSchedule(Habit h) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1001);
+                // Schedule anyway; if denied, the user can toggle later. Exact-alarm check too.
+            }
+        }
+        if (!ReminderScheduler.canScheduleExact(this)) {
+            // Android 12+: nudge to settings once so exact alarms are allowed; fall back handled in scheduler.
+            try {
+                startActivity(new android.content.Intent(
+                        android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM));
+            } catch (Exception ignored) {}
+        }
+        ReminderScheduler.schedule(this, h);
+    }
+
     private void updateCount() {
         TextView count = findViewById(R.id.habitCount);
         int done = 0;
         for (Habit h : habits) if (h.isDoneToday()) done++;
         count.setText(done + "/" + habits.size() + " today");
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // If the user just granted notification permission, make sure any enabled
+        // reminders are scheduled (the add flow already called schedule, which works
+        // regardless; this just keeps things consistent if they deferred).
+        if (requestCode == 1001) {
+            ReminderScheduler.rescheduleAll(this, habits);
+        }
     }
 
     private void sortHabits() {

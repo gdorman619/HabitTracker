@@ -32,6 +32,13 @@ public class Habit {
     public List<String> completedDates = new ArrayList<>();  // dates marked done
     public List<String> frozenDates = new ArrayList<>();    // dates covered by freeze (also used to detect an active freeze)
 
+    // Reminder settings (opt-in, off by default). A habit reminds the user once a
+    // day at reminderHour:reminderMinute; the notification is skipped if the habit
+    // is already done that day. All local/offline - no account, no server.
+    public boolean reminderEnabled = false;
+    public int reminderHour = 9;        // 0-23
+    public int reminderMinute = 0;      // 0-59
+
     /** Create a new habit. createdAt defaults to today. */
     public Habit(int id, String name, String emoji) {
         this.id = id;
@@ -177,6 +184,13 @@ public class Habit {
         }
     }
 
+    /** Mark today done only (idempotent) - used by the notification "Done" action. */
+    public void markDoneToday() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        String today = sdf.format(new java.util.Date());
+        if (!completedDates.contains(today)) completedDates.add(today);
+    }
+
     /** Serialize this habit to a JSON string for SharedPreferences storage. */
     public String toJson() {
         JSONObject obj = new JSONObject();
@@ -185,6 +199,9 @@ public class Habit {
             obj.put("name", name);
             obj.put("emoji", emoji);
             obj.put("createdAt", createdAt);
+            obj.put("reminderEnabled", reminderEnabled);
+            obj.put("reminderHour", reminderHour);
+            obj.put("reminderMinute", reminderMinute);
             JSONArray dates = new JSONArray();
             for (String d : completedDates) dates.put(d);
             obj.put("dates", dates);
@@ -210,6 +227,9 @@ public class Habit {
             JSONObject obj = new JSONObject(json);
             Habit h = new Habit(obj.getInt("id"), obj.getString("name"), obj.optString("emoji", "\u2705"));
             h.createdAt = obj.optString("createdAt", null);
+            h.reminderEnabled = obj.optBoolean("reminderEnabled", false);
+            h.reminderHour = obj.optInt("reminderHour", 9);
+            h.reminderMinute = obj.optInt("reminderMinute", 0);
             JSONArray dates = obj.getJSONArray("dates");
 
             // Backward compat: if no createdAt stored, use earliest completion as fallback

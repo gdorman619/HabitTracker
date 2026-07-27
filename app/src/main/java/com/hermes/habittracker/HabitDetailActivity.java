@@ -22,6 +22,7 @@ package com.hermes.habittracker;
  */
 
 import android.app.AlertDialog;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -158,6 +159,9 @@ public class HabitDetailActivity extends AppCompatActivity {
 
         // Freeze section
         addFreezeSection(root);
+
+        // Reminder section (opt-in)
+        addReminderSection(root);
 
         // Month navigation header
         LinearLayout monthHeader = new LinearLayout(this);
@@ -361,6 +365,94 @@ public class HabitDetailActivity extends AppCompatActivity {
         }
         section.addView(btn);
         root.addView(section);
+    }
+
+    /**
+     * Reminder section: opt-in daily nudge for this habit. Off by default. Toggling
+     * on (or changing the time) persists the setting and reschedules the alarm. If
+     * notification permission is missing (Android 13+) we ask for it; if exact-alarm
+     * permission is missing (Android 12+) we deep-link to settings.
+     */
+    private void addReminderSection(LinearLayout root) {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setBackgroundColor(C_CARD);
+        section.setPadding(dp(12), dp(12), dp(12), dp(12));
+        LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        sLp.bottomMargin = dp(16);
+        section.setLayoutParams(sLp);
+
+        // Header row: label + switch
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView label = new TextView(this);
+        label.setText("\uD83D\uDD14 Daily reminder");
+        label.setTextSize(14);
+        label.setTextColor(C_MUTED);
+        label.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+        android.widget.Switch sw = new android.widget.Switch(this);
+        sw.setChecked(habit.reminderEnabled);
+        head.addView(label);
+        head.addView(sw);
+        section.addView(head);
+
+        // Time row (visible only when enabled)
+        TextView timeTv = new TextView(this);
+        timeTv.setText(formatReminderTime(habit.reminderHour, habit.reminderMinute));
+        timeTv.setTextSize(15);
+        timeTv.setTextColor(C_ACCENT);
+        timeTv.setGravity(Gravity.END);
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tLp.topMargin = dp(8);
+        timeTv.setLayoutParams(tLp);
+        timeTv.setVisibility(habit.reminderEnabled ? View.VISIBLE : View.GONE);
+
+        android.widget.Switch finalSw = sw;
+        finalSw.setOnCheckedChangeListener((v, checked) -> {
+            timeTv.setVisibility(checked ? View.VISIBLE : View.GONE);
+            habit.reminderEnabled = checked;
+            storage.updateHabit(habit);
+            applyReminderPermissionsAndSchedule();
+        });
+        timeTv.setOnClickListener(v -> {
+            android.app.TimePickerDialog tpd = new android.app.TimePickerDialog(this,
+                    com.google.android.material.R.style.ThemeOverlay_Material3_Dark,
+                    (view, hh, mm) -> {
+                        habit.reminderHour = hh; habit.reminderMinute = mm;
+                        timeTv.setText(formatReminderTime(hh, mm));
+                        storage.updateHabit(habit);
+                        applyReminderPermissionsAndSchedule();
+                    }, habit.reminderHour, habit.reminderMinute, false);
+            tpd.show();
+        });
+
+        section.addView(timeTv);
+        root.addView(section);
+    }
+
+    private String formatReminderTime(int hh, int mm) {
+        String ampm = hh < 12 ? "AM" : "PM";
+        int h12 = hh % 12; if (h12 == 0) h12 = 12;
+        return h12 + ":" + (mm < 10 ? "0" + mm : mm) + " " + ampm;
+    }
+
+    private void applyReminderPermissionsAndSchedule() {
+        if (!habit.reminderEnabled) { ReminderScheduler.cancel(this, habit); return; }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1002);
+        }
+        if (!ReminderScheduler.canScheduleExact(this)) {
+            try {
+                startActivity(new android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM));
+            } catch (Exception ignored) {}
+        }
+        ReminderScheduler.schedule(this, habit);
+        Toast.makeText(this, "Reminder " + (habit.reminderEnabled ? "set for " + formatReminderTime(habit.reminderHour, habit.reminderMinute) : "off"), Toast.LENGTH_SHORT).show();
     }
 
     /** True if today or yesterday is a missed (not done, not frozen) day. */
