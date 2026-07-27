@@ -74,9 +74,14 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
         } else {
             holder.streak.setVisibility(View.GONE);
         }
+        // Bind the checkbox to the habit's ACTUAL done state. RecyclerView recycles
+        // rows, so without this the checkbox keeps a stale checked state from a
+        // previous row and drifts out of sync with the streak text after
+        // add/remove reorders the list. Detach the listener before setChecked so the
+        // programmatic change doesn't fire a spurious toggle, then re-attach.
+        holder.check.setOnCheckedChangeListener(null);
+        holder.check.setChecked(h.isDoneToday());
         holder.check.setOnCheckedChangeListener((v, checked) -> {
-            // Use the binding adapter position (stable during layout); ignore if the
-            // row is mid-recycle (position == NO_POSITION) to avoid ArrayIndexOutOfBounds.
             int pos = holder.getBindingAdapterPosition();
             if (pos != RecyclerView.NO_POSITION && listener != null) listener.onToggle(pos);
         });
