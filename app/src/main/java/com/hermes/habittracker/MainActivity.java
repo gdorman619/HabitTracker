@@ -12,8 +12,8 @@ package com.hermes.habittracker;
  *   - Tap habit → opens HabitDetailActivity (calendar/history/edit)
  *   - Long-press habit → menu: View History / Edit / Delete
  *   - Tap + button → add new habit dialog (name + emoji picker)
- *   - Long-press + → test data menu (load/clear)
- *   - Undo snackbar after toggling (5-second undo)
+ *   - Long-press + → test data menu (load/clear/run diagnostics)
+ *   - Toggle is reversible with a second tap (no undo snackbar)
  *   - Empty state with welcome message when no habits
  *   - Free tier: max 5 habits, then unlock prompt ($2.99 one-time)
  *   - Widget auto-refreshes on any change
@@ -32,7 +32,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -181,21 +180,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Toggle a habit's completion for today at a given position, refresh the UI,
-     * and offer a 5s Undo. The Undo restores the SAME habit (matched by id), not
-     * the list position — because the list gets re-sorted after toggling, the old
-     * position would now point at a different habit.
+     * Toggle a habit's completion for today at a given position, refresh the UI.
+     * No undo snackbar — a checkbox toggle is reversible with a second tap, and the
+     * genuinely destructive actions (Delete, Clear All) already have confirm dialogs.
      */
     private void toggleHabitAt(int pos) {
         if (pos < 0 || pos >= habits.size()) return;
-        final int habitId = habits.get(pos).id;
         habits.get(pos).toggleToday();
         storage.updateHabit(habits.get(pos));
         sortHabits();
         adapter.update(habits);
         updateCount();
         StreaksWidgetProvider.updateAllWidgets(this);
-        showUndoToast(habitId);
     }
 
     /**
@@ -244,15 +240,15 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception e) { out.append("FAIL  #1 exception: ").append(e).append("\n"); fail++; }
 
-        // #2 Undo-by-id: toggling then "undo" (by id) must restore the SAME habit.
+        // #2 Toggle-revert: toggling twice returns a habit to its original state
+        // (this is what the on-list checkbox relies on — tap again to undo a fat-finger).
         try {
             Habit h = new Habit(9002, "Diag2", "\uD83C\uDFA7");
             h.toggleToday();                       // mark done
             boolean doneAfterToggle = h.isDoneToday();
-            // undo restores by id:
-            h.toggleToday();                       // simulate undo (toggles back)
+            h.toggleToday();                       // tap again = revert
             boolean restored = !h.isDoneToday();
-            if (doneAfterToggle && restored) { out.append("PASS  #2 undo restores same habit by id\n"); pass++; }
+            if (doneAfterToggle && restored) { out.append("PASS  #2 toggle reverts cleanly\n"); pass++; }
             else { out.append("FAIL  #2 toggle=").append(doneAfterToggle).append(" undo=").append(restored).append("\n"); fail++; }
         } catch (Exception e) { out.append("FAIL  #2 exception: ").append(e).append("\n"); fail++; }
 
@@ -301,26 +297,6 @@ public class MainActivity extends AppCompatActivity {
             .setMessage(out.toString())
             .setPositiveButton("OK", null)
             .show();
-    }
-
-    private void showUndoToast(int habitId) {
-        View view = findViewById(android.R.id.content);
-        Snackbar.make(view, "Habit toggled", Snackbar.LENGTH_SHORT)
-                .setAction("Undo", v -> {
-                    // Find this habit by id (position is stale after re-sort)
-                    for (int i = 0; i < habits.size(); i++) {
-                        if (habits.get(i).id == habitId) {
-                            habits.get(i).toggleToday();   // toggle back
-                            storage.updateHabit(habits.get(i));
-                            sortHabits();
-                            adapter.update(habits);
-                            updateCount();
-                            StreaksWidgetProvider.updateAllWidgets(this);
-                            break;
-                        }
-                    }
-                })
-                .show();
     }
 
     private void showHabitMenu(final int pos) {
