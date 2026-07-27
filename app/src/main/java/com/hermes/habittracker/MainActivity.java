@@ -14,7 +14,7 @@ package com.hermes.habittracker;
  *   - Tap + button → add new habit dialog (name + emoji picker)
  *   - Long-press + → test data menu (load/clear/run diagnostics)
  *   - Toggle is reversible with a second tap (no undo snackbar)
- *   - Empty state with welcome message when no habits
+ *   - Empty state with gentle starter suggestions when no habits
  *   - Free tier: max 5 habits, then unlock prompt ($2.99 one-time)
  *   - Widget auto-refreshes on any change
  */
@@ -45,6 +45,15 @@ public class MainActivity extends AppCompatActivity {
         "\uD83E\uDD8A", "\uD83D\uDE80", "\u263A\uFE0F", "\uD83C\uDFB5", "\uD83D\uDD25"
     };
     private int selectedEmojiIdx = 0;
+
+    // Gentle onboarding: a small, curated starter set shown when the app has no
+    // habits yet. The research is clear that new users abandon trackers when faced
+    // with a blank list and "add 20 habits" - starting with 1-3 simple ones wins.
+    private static final String[][] STARTER_HABITS = {
+        {"Drink water", "\uD83D\uDCA7"},
+        {"Exercise", "\uD83D\uDCAA"},
+        {"Read 10 pages", "\uD83D\uDCDA"}
+    };
 
     private static final String[] QUOTES = {
         "Small steps every day lead to big results.",
@@ -135,7 +144,6 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(this, "All habits cleared", Toast.LENGTH_SHORT).show();
                 })
                 .setNeutralButton("Run Diagnostics", (d, w) -> runDiagnostics())
-                .setPositiveButton("Cancel", null)
                 .show();
             return true;
         });
@@ -169,14 +177,57 @@ public class MainActivity extends AppCompatActivity {
         if (empty == null) return;
         if (habits.isEmpty()) {
             empty.setVisibility(View.VISIBLE);
-            empty.setText("\uD83D\uDD25 Ready to build some streaks?\n\nTap the + button to add your first habit!");
+            empty.setText("\uD83D\uDD25 Ready to build some streaks?\n\nStart with 3 simple suggestions, or add your own.\nTap here to begin.");
             empty.setGravity(android.view.Gravity.CENTER);
             empty.setTextSize(16);
             empty.setTextColor(0xff9aa7b4);
             empty.setPadding(0, 100, 0, 0);
+            empty.setClickable(true);
+            empty.setOnClickListener(v -> showStarterPicker());
         } else {
             empty.setVisibility(View.GONE);
+            empty.setClickable(false);
+            empty.setOnClickListener(null);
         }
+    }
+
+    /**
+     * Gentle onboarding: when there are no habits yet, let the user start from a
+     * small curated set (1-3) instead of a blank list. Pre-checked so a single tap
+     * populates the app; "Add my own" falls back to the normal add dialog.
+     */
+    private void showStarterPicker() {
+        final boolean[] checked = new boolean[STARTER_HABITS.length];
+        java.util.Arrays.fill(checked, true);
+        String[] items = new String[STARTER_HABITS.length];
+        for (int i = 0; i < STARTER_HABITS.length; i++) items[i] = STARTER_HABITS[i][0];
+        new AlertDialog.Builder(this, com.google.android.material.R.style.ThemeOverlay_Material3_Dark)
+            .setTitle("Start small - pick a few")
+            .setMessage("Most people stick with habits when they begin with just a couple. Choose 1-3 to start, then add more later.")
+            .setMultiChoiceItems(items, checked, (d, which, isChecked) -> checked[which] = isChecked)
+            .setPositiveButton("Add habits", (d, w) -> {
+                int added = 0;
+                for (int i = 0; i < STARTER_HABITS.length; i++) {
+                    if (checked[i] && storage.canAddMore()) {
+                        Habit h = new Habit(storage.getNextId(), STARTER_HABITS[i][0], STARTER_HABITS[i][1]);
+                        storage.addHabit(h);
+                        habits.add(h);
+                        added++;
+                    }
+                }
+                if (added > 0) {
+                    sortHabits();
+                    adapter.update(habits);
+                    updateCount();
+                    updateEmptyState();
+                    StreaksWidgetProvider.updateAllWidgets(this);
+                    Toast.makeText(this, added + " habit" + (added == 1 ? "" : "s") + " added. Build from there!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Free limit reached - unlock for more", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Add my own", (d, w) -> showAddDialog())
+            .show();
     }
 
     /**
