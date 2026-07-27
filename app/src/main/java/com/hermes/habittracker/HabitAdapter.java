@@ -63,7 +63,11 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.VH> {
             holder.freezeBadge.setVisibility(View.GONE);
         }
 
-        int streak = h.getStreak();
+        // A streak is only shown as "live" when today is actually done. If today is
+        // unchecked, the streak is 0 (broken) — the checkbox and streak status must
+        // agree. (getStreak()'s calendar semantics still apply for the detail/calendar
+        // view, where yesterday-completed is a legit in-progress streak.)
+        int streak = h.isDoneToday() ? h.getStreak() : 0;
         if (streak > 0) {
             holder.streak.setText("\uD83D\uDD25 " + streak + " day streak");
             holder.streak.setVisibility(View.VISIBLE);
